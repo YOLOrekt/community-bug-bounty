@@ -1,0 +1,17 @@
+**/node_modules
+build
+coverage
+coverage.json
+.vscode
+certs
+rpc-info
+
+**/.env
+typechain
+
+#Hardhat files
+cache
+artifacts
+
+plant-uml
+out

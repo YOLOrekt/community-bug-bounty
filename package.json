@@ -1,0 +1,56 @@
+{
+  "name": "base-contracts",
+  "version": "0.2.0",
+  "description": "fundamental yolo contracts",
+  "main": "",
+  "author": "garen",
+  "license": "MIT",
+  "root": "./",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOLOrekt/community-bug-bounty.git"
+  },
+  "keywords": [
+    "smart",
+    "contracts",
+    "smart contracts",
+    "defi",
+    "finance",
+    "short term",
+    "prediction markets"
+  ],
+  "bugs": {
+    "url": "https://github.com/YOLOrekt/community-bug-bounty/issues"
+  },
+  "homepage": "https://github.com/YOLOrekt/community-bug-bounty#readme",
+  "scripts": {
+    "test": "npx hardhat test"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.5.0",
+    "bignumber": "^1.1.0",
+    "dotenv": "^16.0.1"
+  },
+  "devDependencies": {
+    "@ethersproject/experimental": "^5.5.0",
+    "@nomiclabs/hardhat-ethers": "^2.0.5",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
+    "@openzeppelin/test-helpers": "^0.5.10",
+    "@typechain/ethers-v5": "^10.0.0",
+    "@typechain/hardhat": "^6.0.0",
+    "@types/chai": "^4.3.1",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^17.0.29",
+    "chai": "^4.3.6",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.5.4",
+    "hardhat": "^2.9.1",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-coverage": "^0.7.20",
+    "ts-node": "^10.7.0",
+    "typechain": "^8.0.0",
+    "typescript": "^4.6.3",
+    "web3": "^1.7.1"
+  }
+}
