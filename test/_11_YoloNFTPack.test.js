@@ -151,7 +151,7 @@ describe("YOLOrekt YoloNFTPack Test", () => {
           UNITY,
           EMPTY_BYTES
         )
-      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
     });
 
     it("reverts token transfer due to insufficient balance", async () => {
@@ -504,7 +504,7 @@ describe("YOLOrekt YoloNFTPack Test", () => {
 
       await expect(
         yoloNFTPack.burn(bob.address, l1FirstToken, UNITY)
-      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
     });
 
     // zero address revert unreachable
@@ -515,14 +515,14 @@ describe("YOLOrekt YoloNFTPack Test", () => {
 
       await expect(
         yoloNFTPack.connect(alice).burn(ZERO_ADDRESS, l1FirstToken, UNITY)
-      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
 
       await yoloNFTPack.connect(bob).setApprovalForAll(alice.address, true);
       await yoloNFTPack.mintBaseSFT(bob.address);
 
       await expect(
         yoloNFTPack.connect(alice).burn(ZERO_ADDRESS, l1FirstToken, UNITY)
-      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
     });
 
     it("reverts token burn due to insufficient balance", async () => {
