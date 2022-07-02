@@ -2,11 +2,11 @@
 
 The YOLO system of Smart Contracts has begun orbital descent. After months of serious effort placed into streamlining and perfecting, we are opening up our smart contracts to our community of Web3 geniuses, developers, and degens, leading to yet another Bug Bounty program.
 
-This is a chance for Ethereum experts, developers, and our community to help us discover bugs and vulnerabilities and earn some serious cash at the same time.
+This is a chance for EVM experts and developers to help us discover bugs and vulnerabilities and earn some serious cash at the same time.
 
 ## Bug Tiers
 
-This program will reward discoveries based on three tiers of severity:
+The program will reward discoveries based on three tiers of severity:
 
 - **HIGH**: any vulnerability which has catastrophic implications, such as permanent Denial of Service (DOS), draining of user, liquidity provider or treasury funds, takeover of access or administrative privileges.
   _Reward: $5,000 USDC_
@@ -17,7 +17,7 @@ This program will reward discoveries based on three tiers of severity:
 
 There's also an **easter egg** thrown in there for fun. See if you can find the intentional bug we've planted and get _$500 USDC_. Additionally, any _significant gas efficiency improvement proposals_ with a minimum savings of 10k gas units or 20%, and which we implement, will be rewarded _$200-$2000 USDC_ (depending on frequency of code call)..
 
-The contracts are easy to use, with minimal interfaces, clear upgrade paths, and importantly, secured through repeated revision and audits. Hop in and let's get going!
+YOLO contracts are easy to use, with minimal interfaces, clear upgrade paths, and importantly, secured through repeated revision and audits. Hop in and let's get going!
 
 ## Reporting bugs
 
