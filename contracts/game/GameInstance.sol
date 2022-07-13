@@ -3,6 +3,7 @@ pragma solidity 0.8.13;
 
 import {IYoloGame} from "./IYoloGame.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./utils/GameStructs.sol";
 import {GameEvents} from "./utils/GameEvents.sol";
 import {YoloRegistry} from "../core/YoloRegistry.sol";
@@ -10,8 +11,7 @@ import {RegistrySatellite} from "../core/RegistrySatellite.sol";
 import {LiquidityPool} from "../core/LiquidityPool.sol";
 import {YoloWallet} from "../core/YoloWallet.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {GAME_ADMIN_ROLE, MARKET_MAKER_ROLE, USDC_TOKEN, YOLO_WALLET, LIQUIDITY_POOL, FEE_RATE_MIN, USDC_DECIMALS} from "../utils/constants.sol";
+import {GAME_ADMIN_ROLE, MARKET_MAKER_ROLE, USDC_TOKEN, YOLO_WALLET, LIQUIDITY_POOL, FEE_RATE_MIN, USDC_DECIMALS_FACTOR} from "../utils/constants.sol";
 
 // import "hardhat/console.sol";
 
@@ -260,7 +260,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
             bidRound <= MAX_ROUND_OFFSET + roundIndex,
             "cannot bid more than 10 rounds in advance"
         );
-        require(amount >= 5 * USDC_DECIMALS, "5 USDC minimum bid");
+        require(amount >= 5 * USDC_DECIMALS_FACTOR, "5 USDC minimum bid");
 
         address sender = msg.sender;
         uint256 userBalance = yoloWalletContract.balances(sender);
@@ -301,7 +301,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         uint128 nextStrikePrice
     ) external override onlyAuthorized(GAME_ADMIN_ROLE) {
         require(
-            settlementPrice != 0 && nextStrikePrice != 0,
+            settlementPrice > 0 && nextStrikePrice > 0,
             "args must be g.t. 0"
         );
 
@@ -343,7 +343,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         uint72 headIdx = bidManager.headIdx;
 
         // also means unsettledBidCount should be zero
-        require(headIdx != 0, "no pending claims");
+        require(headIdx > 0, "no pending claims");
 
         uint256 bound = bidManager.unsettledBidCount < EXTANT_BIDS_LIMIT
             ? bidManager.unsettledBidCount
@@ -370,7 +370,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
 
             RoundData memory roundData = roundDatas[userRound];
 
-            if (roundData.settlementPrice != 0) {
+            if (roundData.settlementPrice > 0) {
                 RoundPool memory roundPool = gamePools[userRound];
 
                 // console.log("totalUserUp %s", roundPool.totalUserUp);

@@ -27,7 +27,7 @@ bytes32 constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 bytes32 constant MARKET_MAKER_ROLE = keccak256("MARKET_MAKER_ROLE");
 
 // assets config
-uint256 constant USDC_DECIMALS = 10**6;
+uint256 constant USDC_DECIMALS_FACTOR = 10**6;
 
 // global parameters
 bytes32 constant FEE_RATE_MIN = keccak256("FEE_RATE_MIN"); // in basis points
@@ -35,4 +35,4 @@ bytes32 constant FEE_RATE_MAX = keccak256("FEE_RATE_MAX"); // basis points
 
 // Token Names and Symbols
 string constant LIQUIDITY_POOL_TOKENS_NAME = "Yolo Liquidity Provider Shares";
-string constant LIQUIDITY_POOL_TOKENS_SYMBOL = "BYLP";
+string constant LIQUIDITY_POOL_TOKENS_SYMBOL = "YLP";

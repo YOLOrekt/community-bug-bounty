@@ -5,6 +5,7 @@ coverage.json
 .vscode
 certs
 rpc-info
+package-lock.json
 
 **/.env
 typechain
@@ -13,5 +14,9 @@ typechain
 cache
 artifacts
 
+# plantuml
 plant-uml
 out
+
+# mythril
+.solcx-lock-*

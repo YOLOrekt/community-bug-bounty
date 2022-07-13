@@ -48,6 +48,8 @@ contract YoloWallet is RegistrySatellite {
     );
     event TreasuryAddressUpdate(address indexed treasuryAddress);
 
+    error EmptyLPAddress();
+
     constructor(address registryContractAddress_)
         RegistrySatellite(registryContractAddress_)
     {
@@ -123,7 +125,9 @@ contract YoloWallet is RegistrySatellite {
             LIQUIDITY_POOL
         );
 
-        require(lpAddr != address(0), "LP address cannot be zero");
+        if (lpAddr == address(0)) {
+            revert EmptyLPAddress();
+        }
 
         lpAddress = lpAddr;
 
@@ -139,6 +143,10 @@ contract YoloWallet is RegistrySatellite {
         external
         onlyAuthorized(LIQUIDITY_POOL)
     {
+        if (lpAddress == address(0)) {
+            revert EmptyLPAddress();
+        }
+
         balances[lpAddress] += amount;
     }
 
@@ -150,6 +158,10 @@ contract YoloWallet is RegistrySatellite {
         external
         onlyAuthorized(LIQUIDITY_POOL)
     {
+        if (lpAddress == address(0)) {
+            revert EmptyLPAddress();
+        }
+
         balances[lpAddress] -= amount;
 
         stablecoinTokenContract.safeTransfer(receiver, amount);
@@ -162,6 +174,7 @@ contract YoloWallet is RegistrySatellite {
      * @param user User address.
      * @param amount Amount to increase user balances by.
      **/
+    /// @custom:scribble #if_succeeds balances[user] >= old(balances[user]);
     function gameUpdateUserBalance(address user, uint256 amount)
         external
         onlyGameContract
@@ -197,7 +210,7 @@ contract YoloWallet is RegistrySatellite {
         uint256 splitFee = treasuryFeeBP;
         address treasuryAddr = treasuryAddress;
 
-        if (splitFee > 0) {
+        if (splitFee > 0 && treasuryAddress != address(0)) {
             uint256 lpAmount = (fees * (BASIS_FEE_FACTOR - splitFee)) /
                 BASIS_FEE_FACTOR +
                 lpReturn;

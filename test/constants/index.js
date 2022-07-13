@@ -40,7 +40,7 @@ module.exports = {
   },
   STConfig: {
     name: "Yolo Liquidity Provider Shares",
-    symbol: "BYLP",
+    symbol: "YLP",
   },
   Globals: {
     DeployedContractAddresses: {

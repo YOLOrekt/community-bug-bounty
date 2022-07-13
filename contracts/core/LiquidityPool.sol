@@ -1,14 +1,16 @@
 pragma solidity 0.8.13;
 
 import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ILiquidityPool} from "./ILiquidityPool.sol";
 import {RegistrySatellite, YoloRegistry, CoreCommon} from "./RegistrySatellite.sol";
 import {YoloShareTokens} from "../tokens/YoloShareTokens.sol";
 import {YoloWallet} from "./YoloWallet.sol";
 import {IYoloGame} from "../game/IYoloGame.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {USDC_TOKEN, YOLO_SHARES, YOLO_WALLET, ADMIN_ROLE, USDC_DECIMALS} from "../utils/constants.sol";
+import {USDC_TOKEN, YOLO_SHARES, YOLO_WALLET, ADMIN_ROLE, USDC_DECIMALS_FACTOR} from "../utils/constants.sol";
+
+// import "hardhat/console.sol";
 
 /**
  * @title LiquidityPool
@@ -23,12 +25,12 @@ import {USDC_TOKEN, YOLO_SHARES, YOLO_WALLET, ADMIN_ROLE, USDC_DECIMALS} from ".
  * different roles - head to its documentation for details.
  */
 contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
-    using SafeERC20 for ERC20;
+    using SafeERC20 for IERC20;
 
-    uint256 constant TWO_THOUSAND_TOKENS = 2000 * USDC_DECIMALS;
+    uint256 constant TWO_THOUSAND_TOKENS = 2000 * USDC_DECIMALS_FACTOR;
 
     // immutable because if either contract changes, a new LP cntct should be deployed anyway, so token migration can commence in clear, sequential steps
-    ERC20 public immutable stablecoinTokenContract;
+    IERC20 public immutable stablecoinTokenContract;
     YoloWallet public immutable walletContract;
 
     uint256 public protectionFactor;
@@ -36,6 +38,13 @@ contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
     uint256 public minimumDepositAmount;
 
     event MarketLimitUpdate(uint256 newLimitValue);
+
+    error TotalSharesExceeded();
+    error BurnRequirementNotMet();
+    error DepositMinimumShortfall(
+        uint256 cumulativeDepositAmount,
+        uint256 minimumDepositAmount
+    );
 
     modifier whenNotLPBalance() {
         require(totalSupply() == 0, "LP tokens are in circulation");
@@ -55,10 +64,14 @@ contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
                 totalSupply
             : 0;
 
-        require(
-            depositAmount + previousBalance >= minimumDepositAmount,
-            "amt must be g.t.e. 400 USDC"
-        );
+        uint256 cumulativeDepositAmount = depositAmount + previousBalance;
+
+        if (cumulativeDepositAmount < minimumDepositAmount) {
+            revert DepositMinimumShortfall(
+                cumulativeDepositAmount,
+                minimumDepositAmount
+            );
+        }
         _;
     }
 
@@ -86,11 +99,11 @@ contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
             "wallet contract not registered"
         );
 
-        stablecoinTokenContract = ERC20(usdcTokenAddress);
+        stablecoinTokenContract = IERC20(usdcTokenAddress);
         walletContract = YoloWallet(yoloWalletAddress);
 
         protectionFactor = 1000;
-        minimumDepositAmount = 400 * USDC_DECIMALS;
+        minimumDepositAmount = 400 * USDC_DECIMALS_FACTOR;
     }
 
     function supportsInterface(bytes4 interfaceId)
@@ -100,6 +113,25 @@ contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @notice Check how many USDC tokens can be redeemed in exchange for burning LP shares. If burn value is greater than total share amount, call will fail.
+     * @param burnAmount Amount of LP share to burn for USDC withdrawal.
+     **/
+    function getTokensRedeemed(uint256 burnAmount)
+        external
+        view
+        returns (uint256 tokenTransferAmount)
+    {
+        uint256 sharesTotalSupply = totalSupply();
+        if (burnAmount > sharesTotalSupply) {
+            revert TotalSharesExceeded();
+        }
+
+        tokenTransferAmount =
+            (burnAmount * walletContract.balances(address(this))) /
+            sharesTotalSupply;
     }
 
     /**
@@ -145,14 +177,7 @@ contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
             initialAmount
         );
 
-        uint256 adjustmentFactor;
-        uint256 stablecoinDecimals = stablecoinTokenContract.decimals();
-
-        if (stablecoinDecimals < decimals()) {
-            adjustmentFactor = 10**(decimals() - stablecoinDecimals);
-        } else {
-            adjustmentFactor = 1;
-        }
+        uint256 adjustmentFactor = 10**decimals() / USDC_DECIMALS_FACTOR;
 
         _mint(sender, initialAmount * adjustmentFactor);
 
@@ -187,19 +212,29 @@ contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
     }
 
     /**
-     * @notice Burns LP shares in exchange for share of pool USDC tokens.
-     * @dev  Will require share token approval from sender to contract to burn.
+     * @notice Burns LP shares in exchange for share of pool USDC tokens. If provider balance remaining in pool is less than current `minimumDepositAmount`, then all LP tokens must be burned for redemption.
+     * @dev  Will require share token approval from sender to contract to burn. Redemption amount check is to prevent minimum deposit circumvention.
      * @param burnAmount Amount of LP share to burn for USDC withdrawal.
      **/
     function burnLpShares(uint256 burnAmount) external {
         address sender = msg.sender;
         // !!! must call supply before burn
         uint256 sharesTotalSupply = totalSupply();
-
-        _burn(sender, burnAmount);
+        uint256 senderTotalLP = balanceOf(sender);
 
         uint256 tokenTransferAmount = (burnAmount *
             walletContract.balances(address(this))) / sharesTotalSupply;
+
+        if (burnAmount != senderTotalLP) {
+            uint256 currentAccount = (senderTotalLP *
+                walletContract.balances(address(this))) / sharesTotalSupply;
+
+            if (currentAccount - tokenTransferAmount < minimumDepositAmount) {
+                revert BurnRequirementNotMet();
+            }
+        }
+
+        _burn(sender, burnAmount);
 
         // transfer comes from {YoloWallet} contract
         walletContract.reduceLiquidityPoolBalance(sender, tokenTransferAmount);

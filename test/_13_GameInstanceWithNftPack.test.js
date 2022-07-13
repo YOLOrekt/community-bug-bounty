@@ -4,7 +4,7 @@ const {
   waffle: { loadFixture },
 } = require("hardhat");
 
-const { provider, BigNumber } = ethers;
+const { provider, Wallet, BigNumber, utils } = ethers;
 
 const { deployContracts, getContracts } = require("./utils/deployUtils");
 
@@ -757,7 +757,7 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
         .div(10000)
         .add(roundPool.totalUserDown.mul(lpFeeRate).div(10000));
 
-      console.log("fee amount", fee.toString());
+      // console.log("fee amount", fee.toString());
 
       await expect(
         gameETH_USD.processRound(
@@ -1123,6 +1123,84 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
       );
     });
 
+    it("reverts on mintLpShares before mintInitialShares", async () => {
+      await yoloWallet.setLiquidityPool();
+
+      await expect(liquidityPool.mintLpShares(1)).to.be.revertedWith(
+        "must mint initial LP tokens"
+      );
+    });
+
+    it("reverts on calling mintInitialShares again", async () => {
+      const maxApproveAmount = toUSDCAmount(
+        gameInstancePresets.approveMAX
+      ).toString();
+
+      const fourHundredUsdc = toUSDCAmount(400).toString();
+
+      await yoloWallet.setLiquidityPool();
+
+      await stablecoinToken.approve(liquidityPool.address, maxApproveAmount);
+      await liquidityPool.mintInitialShares(fourHundredUsdc);
+
+      await expect(
+        liquidityPool.mintInitialShares(fourHundredUsdc)
+      ).to.be.revertedWith("LP tokens are in circulation");
+    });
+
+    it("reverts on mint deposit minimum shortfall", async () => {
+      const maxApproveAmount = toUSDCAmount(
+        gameInstancePresets.approveMAX
+      ).toString();
+
+      await yoloWallet.setLiquidityPool();
+
+      await stablecoinToken.approve(liquidityPool.address, maxApproveAmount);
+      let txn, hash, cSigner, signedTxn;
+      // try {
+      cSigner = Wallet.fromMnemonic(
+        "test test test test test test test test test test test junk",
+        `m/44'/60'/0'/0/0`
+      ).connect(provider);
+
+      txn = await liquidityPool.populateTransaction.mintInitialShares(2, {
+        gasLimit: 1000000,
+        nonce: 31,
+      });
+
+      signedTxn = await cSigner.signTransaction(txn);
+      hash = await utils.keccak256(signedTxn);
+      // await provider.sendTransaction(signedTxn);
+
+      const minDepositAmount = await liquidityPool.minimumDepositAmount();
+
+      await expect(
+        liquidityPool.mintInitialShares(2, {
+          gasLimit: 1000000,
+        })
+      ).to.be.revertedWith(
+        `DepositMinimumShortfall(2, ${minDepositAmount.toString()})`
+      );
+      // } catch (err) {
+      //   console.log(err);
+      //   console.log(await provider.getTransactionReceipt(hash));
+      //   console.log(await provider.getBlock());
+      //   console.log(admin.address, cSigner.address);
+      //   console.log("custom hash", hash);
+      //   console.log(
+      //     "hh hash: 0xdff57b355d589fb168ca9ce9284410b0791bf60c2eeae2ae4ac3124b944b460c"
+      //   );
+      //   console.log(
+      //     "hh txn:",
+      //     await provider.getTransaction(
+      //       "0xdff57b355d589fb168ca9ce9284410b0791bf60c2eeae2ae4ac3124b944b460c"
+      //     )
+      //   );
+      //   console.log("custom txn:", txn);
+      //   console.log("custom signed", signedTxn);
+      // }
+    });
+
     it("should able to collect fee and liquidity back to Liquidity Pool on processing round (up wins)", async () => {
       const oneThird = yoloWalletPresets.oneThirdSplit;
       const theRest = yoloWalletPresets.splitRemainder;
@@ -1252,7 +1330,7 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
           upWinSettlementPrice,
         ]);
 
-      console.log("providers return:", providersReturn);
+      // console.log("providers return:", providersReturn);
 
       expect(
         (await yoloWallet.balances(treasury.address)).toString()
