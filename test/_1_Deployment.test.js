@@ -51,6 +51,8 @@ describe("Yolorekt contract Deployment ", () => {
 
       expect(isObject(contracts.gameETH_USD_W_NFT_Pack)).to.be.true;
       expect(isObject(contracts.yoloNFTPack)).to.be.true;
+
+      expect(isObject(contracts.biddersRewardsFactory)).to.be.true;
     }
 
     beforeEach(async function () {
@@ -101,7 +103,7 @@ describe("Yolorekt contract Deployment ", () => {
             roundIndex,
             maxStartDelay
           )
-        ).to.be.revertedWith("yoloRegistry cannot be zero address");
+        ).to.be.revertedWith("ZAA_YoloRegistry");
       });
 
       it("should revert deploying Contract with no admin address", async () => {
@@ -118,7 +120,7 @@ describe("Yolorekt contract Deployment ", () => {
             roundIndex,
             maxStartDelay
           )
-        ).to.be.revertedWith("owner address must be specified");
+        ).to.be.revertedWith("ZAA_gameAdmin()");
       });
     });
   });
@@ -151,7 +153,7 @@ describe("Yolorekt contract Deployment ", () => {
             roundIndex,
             maxStartDelay
           )
-        ).to.be.revertedWith("yoloRegistry cannot be zero address");
+        ).to.be.revertedWith("ZAA_YoloRegistry()");
       });
 
       it("should revert deploying Contract with no yolo token", async () => {
@@ -171,7 +173,7 @@ describe("Yolorekt contract Deployment ", () => {
             roundIndex,
             maxStartDelay
           )
-        ).to.be.revertedWith("yolo token addr not registered");
+        ).to.be.revertedWith("ZAA_USDCToken()");
       });
 
       it("should revert deploying Contract with user contract yolo token", async () => {
@@ -208,7 +210,104 @@ describe("Yolorekt contract Deployment ", () => {
             roundIndex,
             maxStartDelay
           )
-        ).to.be.revertedWith("wallet cntct addr not registered");
+        ).to.be.revertedWith("ZAA_YoloWallet()");
+      });
+
+      it("should revert deploying game factory with missing NFTTracker address ", async () => {
+        const YoloRegistry = await ethers.getContractFactory("YoloRegistry");
+        const yoloRegistry = await YoloRegistry.deploy();
+
+        const StablecoinToken = await ethers.getContractFactory(
+          "StablecoinToken"
+        );
+        const stablecoinToken = await StablecoinToken.deploy(
+          "Generic",
+          "GEN",
+          admin.address
+        );
+
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.USDC_TOKEN
+          ),
+          [stablecoinToken.address, 1, 1]
+        );
+
+        const YoloWallet = await ethers.getContractFactory("YoloWallet");
+        const yoloWallet = await YoloWallet.deploy(yoloRegistry.address);
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.YOLO_WALLET
+          ),
+          [yoloWallet.address, 1, 1]
+        );
+
+        const LiquidityPool = await ethers.getContractFactory("LiquidityPool");
+        const liquidityPool = await LiquidityPool.deploy(yoloRegistry.address);
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.LIQUIDITY_POOL
+          ),
+          [liquidityPool.address, 1, 1]
+        );
+
+        const NFTTracker = await ethers.getContractFactory("NFTTracker");
+        const nftTracker = await NFTTracker.deploy(yoloRegistry.address);
+
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.NFT_TRACKER
+          ),
+          [nftTracker.address, 1, 1]
+        );
+
+        const YoloNFTPack = await ethers.getContractFactory("YoloNFTPack");
+        const yoloNFTPack = await YoloNFTPack.deploy(yoloRegistry.address);
+
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.YOLO_NFT_PACK
+          ),
+          [yoloNFTPack.address, 1, 1]
+        );
+
+        const GameFactory = await ethers.getContractFactory(
+          "GameFactoryWithNFTPack"
+        );
+
+        const gameFactory = await GameFactory.deploy(yoloRegistry.address);
+
+        await yoloRegistry.removeContractAddress(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.NFT_TRACKER
+          )
+        );
+
+        // --- GameETH_USD ---
+        const roundIndex = 0;
+        const maxStartDelay = yoloConstants.TestPresets.Miner.THIRTY_MINUTES;
+        const game1Pair = yoloConstants.Globals.GamePairHashes.ETH_USD;
+        const game1Length = 70;
+
+        const game1InstanceAddress = await gameFactory.getPredictedGameAddress(
+          admin.address,
+          yoloRegistry.address,
+          game1Pair,
+          game1Length,
+          roundIndex,
+          maxStartDelay
+        );
+        await yoloRegistry.setApprovedGame(game1InstanceAddress, true);
+        await expect(
+          gameFactory.createGame(
+            admin.address,
+            yoloRegistry.address,
+            game1Pair,
+            game1Length,
+            roundIndex,
+            maxStartDelay
+          )
+        ).to.be.revertedWith("ZAA_NFTTracker()");
       });
 
       it("should revert deploying Contract with lp contract address ", async () => {
@@ -255,7 +354,7 @@ describe("Yolorekt contract Deployment ", () => {
             roundIndex,
             maxStartDelay
           )
-        ).to.be.revertedWith("lp contract addr not registered");
+        ).to.be.revertedWith("ZAA_LiquidityPool()");
       });
 
       it("should revert deploying Contract without nft pack contract address ", async () => {
@@ -313,7 +412,7 @@ describe("Yolorekt contract Deployment ", () => {
             roundIndex,
             maxStartDelay
           )
-        ).to.be.revertedWith("nft contract address must be specified");
+        ).to.be.revertedWith("ZAA_YoloNFTPack()");
       });
     });
   });

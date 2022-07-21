@@ -5,8 +5,8 @@ import {YoloRegistry} from "../core/YoloRegistry.sol";
 import {RegistrySatellite} from "../core/RegistrySatellite.sol";
 import {ERC1155SemiFungible} from "./extensions/ERC1155SemiFungible.sol";
 import {NFTTracker} from "../core/NFTTracker.sol";
-import {BiddersRewardsFactory} from "../accessory/BiddersRewardsFactoryDummy.sol";
-import {BiddersRewards} from "../accessory/BiddersRewardsDummy.sol";
+import {BiddersRewardsFactory} from "../accessory/BiddersRewardsFactory.sol";
+import {BiddersRewards} from "../accessory/BiddersRewards.sol";
 import {SplitBitId} from "../utils/SplitBitId.sol";
 import {NFT_TRACKER, ADMIN_ROLE, MINTER_ROLE, BIDDERS_REWARDS_FACTORY} from "../utils/constants.sol";
 

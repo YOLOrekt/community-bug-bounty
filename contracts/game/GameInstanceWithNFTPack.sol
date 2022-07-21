@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.13;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {GameInstance} from "./GameInstance.sol";
 import {YoloRegistry} from "../core/YoloRegistry.sol";
 import {NFTTracker} from "../core/NFTTracker.sol";
 import {YoloNFTPack} from "../tokens/YoloNFTPack.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {USDC_TOKEN, YOLO_NFT_PACK, NFT_TRACKER} from "../utils/constants.sol";
+import {ZAA_NFTTracker, ZAA_YoloNFTPack} from "../utils/errors.sol";
 
 /**
  * @title GameInstanceWithNFTPack
@@ -46,10 +47,7 @@ contract GameInstanceWithNFTPack is GameInstance {
             YOLO_NFT_PACK
         );
 
-        require(
-            yoloNftAddress != address(0),
-            "nft contract address must be specified"
-        );
+        if (yoloNftAddress == address(0)) revert ZAA_YoloNFTPack();
 
         yoloNFTPackContract = YoloNFTPack(yoloNftAddress);
 
@@ -57,10 +55,7 @@ contract GameInstanceWithNFTPack is GameInstance {
             NFT_TRACKER
         );
 
-        require(
-            nftTrackerAddress != address(0),
-            "nft tracker contract address must be specified"
-        );
+        if (nftTrackerAddress == address(0)) revert ZAA_NFTTracker();
 
         nftTrackerContract = NFTTracker(nftTrackerAddress);
     }

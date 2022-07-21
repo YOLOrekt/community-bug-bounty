@@ -32,6 +32,7 @@ abstract contract ERC1155SemiFungible is
 
     // Use a split bit implementation.
     using SplitBitId for uint256;
+    // using LogBinary for uint256;
 
     bytes constant EMPTY_BYTES = "";
     // for minting NFT/SFT
@@ -123,7 +124,7 @@ abstract contract ERC1155SemiFungible is
 
         uint256[] memory balances_ = new uint256[](owners.length);
 
-        for (uint256 i = 0; i < owners.length; ++i) {
+        for (uint256 i; i < owners.length; ++i) {
             address owner = owners[i];
 
             require(owner != address(0), "balance query for the zero address");

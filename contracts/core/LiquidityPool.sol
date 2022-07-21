@@ -1,7 +1,7 @@
 pragma solidity 0.8.13;
 
 import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ILiquidityPool} from "./ILiquidityPool.sol";
 import {RegistrySatellite, YoloRegistry, CoreCommon} from "./RegistrySatellite.sol";
@@ -9,6 +9,7 @@ import {YoloShareTokens} from "../tokens/YoloShareTokens.sol";
 import {YoloWallet} from "./YoloWallet.sol";
 import {IYoloGame} from "../game/IYoloGame.sol";
 import {USDC_TOKEN, YOLO_SHARES, YOLO_WALLET, ADMIN_ROLE, USDC_DECIMALS_FACTOR} from "../utils/constants.sol";
+import {ZAA_USDCToken, ZAA_YoloWallet} from "../utils/errors.sol";
 
 // import "hardhat/console.sol";
 
@@ -86,18 +87,13 @@ contract LiquidityPool is ILiquidityPool, YoloShareTokens, RegistrySatellite {
             USDC_TOKEN
         );
 
-        require(
-            usdcTokenAddress != address(0),
-            "usdc token contract not registered"
-        );
+        if (usdcTokenAddress == address(0)) revert ZAA_USDCToken();
 
         address yoloWalletAddress = yoloRegistryContract.getContractAddress(
             YOLO_WALLET
         );
-        require(
-            yoloWalletAddress != address(0),
-            "wallet contract not registered"
-        );
+
+        if (yoloWalletAddress == address(0)) revert ZAA_YoloWallet();
 
         stablecoinTokenContract = IERC20(usdcTokenAddress);
         walletContract = YoloWallet(yoloWalletAddress);
