@@ -80,7 +80,7 @@ contract WhitelistSFTClaims is RegistrySatellite {
         uint256 claimeesLength = claimees.length;
         uint256 expirationTime = block.timestamp + expirationWindow;
 
-        for (uint256 i = 0; i < claimeesLength; i++) {
+        for (uint256 i; i < claimeesLength; i++) {
             claimeesRegister[claimees[i]] = expirationTime;
         }
 

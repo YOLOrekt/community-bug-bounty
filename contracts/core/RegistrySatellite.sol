@@ -1,9 +1,10 @@
 pragma solidity 0.8.13;
 
+import "@openzeppelin/contracts/utils/Strings.sol";
 import {CoreCommon} from "./CoreCommon.sol";
 import {YoloRegistry} from "./YoloRegistry.sol";
 import {ADMIN_ROLE} from "../utils/constants.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import {ZAA_YoloRegistry} from "../utils/errors.sol";
 
 /**
  * @title RegistrySatellite
@@ -16,10 +17,7 @@ abstract contract RegistrySatellite is CoreCommon {
     YoloRegistry public immutable yoloRegistryContract;
 
     constructor(address yoloRegistryAddress_) {
-        require(
-            yoloRegistryAddress_ != address(0),
-            "yoloRegistry cannot be zero address"
-        );
+        if (yoloRegistryAddress_ == address(0)) revert ZAA_YoloRegistry();
 
         yoloRegistryContract = YoloRegistry(yoloRegistryAddress_);
 
@@ -38,13 +36,6 @@ abstract contract RegistrySatellite is CoreCommon {
      * @param role Role key to check authorization on.
      **/
     modifier onlyAuthorized(bytes32 role) {
-        // require(
-        //     hasRole(role, msg.sender) ||
-        //         yoloRegistryContract.hasRole(role, msg.sender) ||
-        //         yoloRegistryContract.hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
-        //         yoloRegistryContract.hasRole(ADMIN_ROLE, msg.sender),
-        //     "must have authorization"
-        // );
         if (
             !hasRole(role, msg.sender) &&
             !yoloRegistryContract.hasRole(role, msg.sender)

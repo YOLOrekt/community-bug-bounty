@@ -1,12 +1,13 @@
 pragma solidity 0.8.13;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {YoloRegistry} from "./YoloRegistry.sol";
 import {RegistrySatellite} from "./RegistrySatellite.sol";
 import {LiquidityPool} from "./LiquidityPool.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {LIQUIDITY_POOL, USDC_TOKEN, ADMIN_ROLE} from "../utils/constants.sol";
+import {ZAA_USDCToken, ZAA_treasuryAddress, ZAA_LiquidityPool} from "../utils/errors.sol";
 
 /**
  * @title YoloWallet
@@ -48,7 +49,7 @@ contract YoloWallet is RegistrySatellite {
     );
     event TreasuryAddressUpdate(address indexed treasuryAddress);
 
-    error EmptyLPAddress();
+    error CallerNotLPContract();
 
     constructor(address registryContractAddress_)
         RegistrySatellite(registryContractAddress_)
@@ -57,10 +58,9 @@ contract YoloWallet is RegistrySatellite {
 
         address stablecoinTokenContractAddress = registryContract
             .getContractAddress(USDC_TOKEN);
-        require(
-            stablecoinTokenContractAddress != address(0),
-            "token contract address cannot be zero"
-        );
+
+        if (stablecoinTokenContractAddress == address(0))
+            revert ZAA_USDCToken();
 
         stablecoinTokenContract = IERC20(stablecoinTokenContractAddress);
     }
@@ -69,14 +69,17 @@ contract YoloWallet is RegistrySatellite {
         external
         onlyAuthorized(ADMIN_ROLE)
     {
-        require(
-            newTreasuryAddress != address(0),
-            "treasury addr must not be zero"
-        );
+        if (newTreasuryAddress == address(0)) revert ZAA_treasuryAddress();
 
         treasuryAddress = newTreasuryAddress;
 
         emit TreasuryAddressUpdate(newTreasuryAddress);
+    }
+
+    function removeTreasuryAddress() external onlyAuthorized(ADMIN_ROLE) {
+        treasuryAddress = address(0);
+
+        emit TreasuryAddressUpdate(address(0));
     }
 
     function setTreasurySplit(uint256 newBasisPoints)
@@ -126,7 +129,7 @@ contract YoloWallet is RegistrySatellite {
         );
 
         if (lpAddr == address(0)) {
-            revert EmptyLPAddress();
+            revert ZAA_LiquidityPool();
         }
 
         lpAddress = lpAddr;
@@ -144,7 +147,7 @@ contract YoloWallet is RegistrySatellite {
         onlyAuthorized(LIQUIDITY_POOL)
     {
         if (lpAddress == address(0)) {
-            revert EmptyLPAddress();
+            revert ZAA_LiquidityPool();
         }
 
         balances[lpAddress] += amount;
@@ -158,9 +161,9 @@ contract YoloWallet is RegistrySatellite {
         external
         onlyAuthorized(LIQUIDITY_POOL)
     {
-        if (lpAddress == address(0)) {
-            revert EmptyLPAddress();
-        }
+        if (lpAddress == address(0)) revert ZAA_LiquidityPool();
+
+        if (msg.sender != lpAddress) revert CallerNotLPContract();
 
         balances[lpAddress] -= amount;
 
@@ -188,6 +191,7 @@ contract YoloWallet is RegistrySatellite {
      * @param user User addresses.
      * @param amount Updated balance amounts. Typically to reduce balane by bid amount.
      **/
+    /// @custom:scribble #if_succeeds balances[user] <= old(balances[user]);
     function gameReduceUserBalance(address user, uint256 amount)
         external
         onlyGameContract

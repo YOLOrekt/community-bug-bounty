@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.13;
 
-import {IYoloGame} from "./IYoloGame.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
+import {IYoloGame} from "./IYoloGame.sol";
 import "./utils/GameStructs.sol";
 import {GameEvents} from "./utils/GameEvents.sol";
 import {YoloRegistry} from "../core/YoloRegistry.sol";
 import {RegistrySatellite} from "../core/RegistrySatellite.sol";
 import {LiquidityPool} from "../core/LiquidityPool.sol";
 import {YoloWallet} from "../core/YoloWallet.sol";
-import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {GAME_ADMIN_ROLE, MARKET_MAKER_ROLE, USDC_TOKEN, YOLO_WALLET, LIQUIDITY_POOL, FEE_RATE_MIN, USDC_DECIMALS_FACTOR} from "../utils/constants.sol";
+import {ZAA_USDCToken, ZAA_gameAdmin, ZAA_YoloWallet, ZAA_LiquidityPool} from "../utils/errors.sol";
 
 // import "hardhat/console.sol";
 
@@ -59,15 +60,12 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         uint256 roundIndex_,
         uint256 maxStartDelay_
     ) RegistrySatellite(registryContractAddress_) {
-        require(gameAdmin_ != address(0), "owner address must be specified");
+        if (gameAdmin_ == address(0)) revert ZAA_gameAdmin();
 
         address stablecoinTokenAddress = YoloRegistry(registryContractAddress_)
             .getContractAddress(USDC_TOKEN);
 
-        require(
-            stablecoinTokenAddress != address(0),
-            "yolo token addr not registered"
-        );
+        if (stablecoinTokenAddress == address(0)) revert ZAA_USDCToken();
 
         roundIndex = roundIndex_;
 
@@ -76,10 +74,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         address yoloWalletAddress = YoloRegistry(registryContractAddress_)
             .getContractAddress(YOLO_WALLET);
 
-        require(
-            yoloWalletAddress != address(0),
-            "wallet cntct addr not registered"
-        );
+        if (yoloWalletAddress == address(0)) revert ZAA_YoloWallet();
 
         yoloWalletContract = YoloWallet(yoloWalletAddress);
 
@@ -87,7 +82,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
             LIQUIDITY_POOL
         );
 
-        require(lpAddress != address(0), "lp contract addr not registered");
+        if (lpAddress == address(0)) revert ZAA_LiquidityPool();
 
         MAX_START_DELAY = maxStartDelay_;
 
@@ -301,7 +296,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         uint128 nextStrikePrice
     ) external override onlyAuthorized(GAME_ADMIN_ROLE) {
         require(
-            settlementPrice > 0 && nextStrikePrice > 0,
+            settlementPrice != 0 && nextStrikePrice != 0,
             "args must be g.t. 0"
         );
 
@@ -343,7 +338,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         uint72 headIdx = bidManager.headIdx;
 
         // also means unsettledBidCount should be zero
-        require(headIdx > 0, "no pending claims");
+        require(headIdx != 0, "no pending claims");
 
         uint256 bound = bidManager.unsettledBidCount < EXTANT_BIDS_LIMIT
             ? bidManager.unsettledBidCount
@@ -361,7 +356,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         uint256[] memory roundsClaimed = new uint256[](bound);
         uint256[] memory roundPayoutAmounts = new uint256[](bound);
 
-        for (uint256 i = 0; i < bound; i++) {
+        for (uint256 i; i < bound; i++) {
             BidInfo memory bidInfo = allBids[cursor];
             uint256 userRound = bidInfo.bidRound;
 
@@ -370,7 +365,7 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
 
             RoundData memory roundData = roundDatas[userRound];
 
-            if (roundData.settlementPrice > 0) {
+            if (roundData.settlementPrice != 0) {
                 RoundPool memory roundPool = gamePools[userRound];
 
                 // console.log("totalUserUp %s", roundPool.totalUserUp);
@@ -413,18 +408,15 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
 
         if (!hasUnsettledBid && bound < EXTANT_BIDS_LIMIT) {
             bidManager.headIdx = 0;
-            bidManager.unsettledBidCount -= uint128(settlementCount);
         } else if (!hasUnsettledBid && bound == EXTANT_BIDS_LIMIT) {
             bidManager.headIdx = cursor;
-            bidManager.unsettledBidCount -= uint128(settlementCount);
         } else if (bound < EXTANT_BIDS_LIMIT) {
             allBids[unsettledBidKey].next = 0;
-            bidManager.unsettledBidCount -= uint128(settlementCount);
         } else if (bound == EXTANT_BIDS_LIMIT) {
             allBids[unsettledBidKey].next = cursor;
-            bidManager.unsettledBidCount -= uint128(settlementCount);
         }
 
+        bidManager.unsettledBidCount -= uint128(settlementCount);
         // console.log("payout sum %s", payoutSum);
 
         // Update Users balance from other contract calling the register contracts to get its address

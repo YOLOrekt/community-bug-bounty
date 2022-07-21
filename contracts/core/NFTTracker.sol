@@ -1,10 +1,11 @@
 pragma solidity 0.8.13;
 
 import {RegistrySatellite} from "./RegistrySatellite.sol";
-import {BiddersRewards} from "../accessory/BiddersRewardsDummy.sol";
+import {BiddersRewards} from "../accessory/BiddersRewards.sol";
 import {YoloNFTPack} from "../tokens/YoloNFTPack.sol";
 import {SplitBitId} from "../utils/SplitBitId.sol";
 import {ADMIN_ROLE, MINTER_ROLE, BIDDERS_REWARDS, YOLO_NFT_PACK} from "../utils/constants.sol";
+import {ZAA_BiddersRewards, ZAA_YoloNFTPack} from "../utils/errors.sol";
 
 /**
  * @title NFTTracker
@@ -115,7 +116,7 @@ contract NFTTracker is RegistrySatellite {
 
         nftLevels = new uint256[](length);
 
-        for (uint256 i = 0; i < length; i++) {
+        for (uint256 i; i < length; i++) {
             nftLevels[i] = nftLevelIds[i + startIndex];
         }
 
@@ -130,10 +131,7 @@ contract NFTTracker is RegistrySatellite {
         external
         onlyAuthorized(ADMIN_ROLE)
     {
-        require(
-            biddersRewardsAddress != address(0),
-            "rewards address cannot be zero"
-        );
+        if (biddersRewardsAddress == address(0)) revert ZAA_BiddersRewards();
 
         biddersRewardsContract = BiddersRewards(biddersRewardsAddress);
 
@@ -162,10 +160,7 @@ contract NFTTracker is RegistrySatellite {
             YOLO_NFT_PACK
         );
 
-        require(
-            yoloNFTPackAddress != address(0),
-            "NFT pack address cannot be zero"
-        );
+        if (yoloNFTPackAddress == address(0)) revert ZAA_YoloNFTPack();
 
         yoloNFTPackContract = YoloNFTPack(yoloNFTPackAddress);
 
@@ -244,10 +239,8 @@ contract NFTTracker is RegistrySatellite {
             "incorrect token base encoding"
         );
 
-        require(
-            address(yoloNFTPackContract) != address(0),
-            "must set yolo nft pack address"
-        );
+        if (address(yoloNFTPackContract) == address(0))
+            revert ZAA_YoloNFTPack();
 
         require(
             yoloNFTPackContract.typeBirthCertificates(baseIndex) == true,

@@ -30,7 +30,7 @@ abstract contract ERC1155DynamicURI is RegistrySatellite, ERC1155 {
 
         bool found = true;
 
-        for (uint256 i = 0; i < 7; i++) {
+        for (uint256 i; i < 7; i++) {
             if (whereBytes[i] != whatBytes[i]) {
                 found = false;
                 break;

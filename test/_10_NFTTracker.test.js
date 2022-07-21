@@ -37,6 +37,8 @@ describe("YOLOrekt NFTTracker Test", () => {
   let nftTracker;
   let yoloWallet;
   let gameETH_USD;
+  let biddersRewards;
+  let biddersRewardsFactory;
 
   async function fixture() {
     await deployContracts(admin);
@@ -49,6 +51,8 @@ describe("YOLOrekt NFTTracker Test", () => {
     nftTracker = contracts.nftTracker;
     yoloWallet = contracts.yoloWallet;
     gameETH_USD = contracts.gameETH_USD_W_NFT_Pack;
+
+    biddersRewardsFactory = contracts.biddersRewardsFactory;
 
     await gameETH_USD.unpause();
   }
@@ -75,7 +79,7 @@ describe("YOLOrekt NFTTracker Test", () => {
     it("Should revert with missing address", async () => {
       await expect(
         nftTracker.setBiddersRewardsContract(ZERO_ADDRESS)
-      ).to.be.revertedWith("rewards address cannot be zero");
+      ).to.be.revertedWith("ZAA_BiddersRewards()");
     });
 
     it("Initial bidders rewards address is zero", async () => {
@@ -275,6 +279,39 @@ describe("YOLOrekt NFTTracker Test", () => {
   });
 
   describe("NftTracker in play", () => {
+    let biddersRewards;
+    beforeEach(async () => {
+      await yoloNFTPack.grantRole(
+        HashedRoles.ADMIN_ROLE,
+        biddersRewardsFactory.address
+      );
+
+      await nftTracker.grantRole(
+        HashedRoles.ADMIN_ROLE,
+        biddersRewardsFactory.address
+      );
+
+      await biddersRewardsFactory.rotateRewardsContracts(admin.address);
+
+      const biddersRewardsAddress =
+        await biddersRewardsFactory.rewardsAddresses(0);
+
+      const BiddersRewards = await ethers.getContractFactory("BiddersRewards");
+      biddersRewards = await BiddersRewards.attach(biddersRewardsAddress);
+
+      await yoloRegistry.setContract(
+        getPackedEncodingNameHash(
+          yoloConstants.Globals.ContractNames.BIDDERS_REWARDS
+        ),
+        [biddersRewards.address, 1, 1]
+      );
+
+      await nftTracker.setBiddersRewardsContract(biddersRewards.address);
+      await yoloNFTPack.setBiddersRewardsFactoryContract(
+        biddersRewardsFactory.address
+      );
+    });
+
     it("should revert if yoloWallet (not game contract) call the update tracking", async () => {
       await expect(
         nftTracker.updateTracking(

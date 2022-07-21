@@ -115,18 +115,18 @@ const deployContracts = async (admin) => {
   // contracts.biddersRewards.data_startBlockNumber = startBlockNumber;
 
   // --- BiddersRewardsFactory ---
-  // const BiddersRewardsFactory = await ethers.getContractFactory(
-  //   "BiddersRewardsFactory"
-  // );
-  // contracts.biddersRewardsFactory = await BiddersRewardsFactory.deploy(
-  //   contracts.yoloRegistry.address
-  // );
-  // await contracts.yoloRegistry.setContract(
-  //   getPackedEncodingNameHash(
-  //     yoloConstants.Globals.ContractNames.BIDDERS_REWARDS_FACTORY
-  //   ),
-  //   [contracts.biddersRewardsFactory.address, 1, 1]
-  // );
+  const BiddersRewardsFactory = await ethers.getContractFactory(
+    "BiddersRewardsFactory"
+  );
+  contracts.biddersRewardsFactory = await BiddersRewardsFactory.deploy(
+    contracts.yoloRegistry.address
+  );
+  await contracts.yoloRegistry.setContract(
+    getPackedEncodingNameHash(
+      yoloConstants.Globals.ContractNames.BIDDERS_REWARDS_FACTORY
+    ),
+    [contracts.biddersRewardsFactory.address, 1, 1]
+  );
 
   // await contracts.yoloNFTPack.grantRole(
   //   HashedRoles.ADMIN_ROLE,
@@ -192,20 +192,6 @@ const deployContracts = async (admin) => {
     ),
     [contracts.liquidityPool.address, 1, 1]
   );
-
-  //  --- Staking Rewards ---
-  // const StakingRewards = await ethers.getContractFactory("StakingRewards");
-  // startBlockNumber = (await provider.getBlockNumber()) + 1;
-  // stakingRewards = await StakingRewards.deploy(contracts.yoloRegistry.address);
-  // contracts.stakingRewards = stakingRewards;
-
-  // await contracts.yoloRegistry.setContract(
-  //   getPackedEncodingNameHash(
-  //     yoloConstants.Globals.ContractNames.STAKING_REWARDS
-  //   ),
-  //   [stakingRewards.address, 1, 1]
-  // );
-  // contracts.stakingRewards.data_startBlockNumber = startBlockNumber;
 
   // --- GameFactory ---
   const GameFactory = await ethers.getContractFactory("GameFactoryWithNFTPack");
