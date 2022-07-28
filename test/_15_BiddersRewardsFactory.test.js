@@ -11,8 +11,9 @@ const {
   Globals: { HashedRoles, HashedContractNames },
   TestPresets: {
     GAME_INSTANCE: gameInstancePresets,
-    NFT_TRACKER: { level1Id },
+    NFT_TRACKER: { level1Id, rewardsMultiplier100 },
   },
+  Math: { ZERO_ADDRESS },
 } = require("./constants");
 
 const ONE_MILLION = 1000000;
@@ -79,7 +80,12 @@ describe("YOLOrekt BiddersRewardsFactory Test", () => {
       await yoloNFTPack.mintBaseSFT(alice.address);
 
       await nftTracker.setYoloNFTPackContract();
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -166,6 +172,43 @@ describe("YOLOrekt BiddersRewardsFactory Test", () => {
       );
     });
 
+    it("reverts on rotateRewardsContracts with missing funds in penultimate BiddersRewards contract", async () => {
+      await nftTracker.grantRole(
+        HashedRoles.ADMIN_ROLE,
+        biddersRewardsFactory.address
+      );
+
+      await biddersRewardsFactory.rotateRewardsContracts(admin.address);
+
+      await expect(
+        biddersRewardsFactory.rotateRewardsContracts(admin.address)
+      ).to.revertedWith("prior cntct requires funds");
+    });
+
+    it("reverts on rotateRewardsContracts with missing NFT Tracker", async () => {
+      await yoloRegistry.removeContractAddress(HashedContractNames.NFT_TRACKER);
+
+      await expect(
+        biddersRewardsFactory.rotateRewardsContracts(admin.address)
+      ).to.be.revertedWith("ZAA_NFTTracker()");
+    });
+
+    it("reverts on rotateRewardsContracts with missing YOLO NFT Pack", async () => {
+      await yoloRegistry.removeContractAddress(
+        HashedContractNames.YOLO_NFT_PACK
+      );
+
+      await expect(
+        biddersRewardsFactory.rotateRewardsContracts(admin.address)
+      ).to.be.revertedWith("ZAA_YoloNFTPack()");
+    });
+
+    it("reverts on rotateRewardsContracts with missing admin", async () => {
+      await expect(
+        biddersRewardsFactory.rotateRewardsContracts(ZERO_ADDRESS)
+      ).to.be.revertedWith("ZAA_rewardsAdmin()");
+    });
+
     it("end rewards cycle", async () => {
       const rewardsAddressesLengthUnInited =
         await biddersRewardsFactory.getRewardsAddressesLength();
@@ -187,7 +230,12 @@ describe("YOLOrekt BiddersRewardsFactory Test", () => {
       await yoloNFTPack.mintBaseSFT(alice.address);
 
       await nftTracker.setYoloNFTPackContract();
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -232,6 +280,132 @@ describe("YOLOrekt BiddersRewardsFactory Test", () => {
       await biddersRewardsFactory.endRewards();
       await expect(biddersRewardsFactory.endRewards()).to.be.revertedWith(
         "rewards not started"
+      );
+    });
+
+    it("reverts end rewards on missing NFT Tracker", async () => {
+      const rewardsAddressesLengthUnInited =
+        await biddersRewardsFactory.getRewardsAddressesLength();
+
+      expect(rewardsAddressesLengthUnInited).to.equal(0);
+      await yoloNFTPack.grantRole(
+        HashedRoles.ADMIN_ROLE,
+        biddersRewardsFactory.address
+      );
+
+      await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
+      await nftTracker.grantRole(
+        HashedRoles.ADMIN_ROLE,
+        biddersRewardsFactory.address
+      );
+      await yoloNFTPack.createBaseType(true);
+      await yoloNFTPack.setTokenLevelMaxCap(level1Id, 1);
+      await yoloNFTPack.setNFTTrackerContract();
+      await yoloNFTPack.mintBaseSFT(alice.address);
+
+      await nftTracker.setYoloNFTPackContract();
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+
+      await stablecoinToken
+        .connect(alice)
+        .approve(
+          gameETH_USD_W_NFT_Pack.address,
+          toTokenAmount(gameInstancePresets.approveMAX).toString()
+        );
+
+      await stablecoinToken.transfer(
+        alice.address,
+        toTokenAmount(gameInstancePresets.transferAmount).toString()
+      );
+
+      await gameETH_USD_W_NFT_Pack
+        .connect(alice)
+        .bidInYolo(
+          toTokenAmount(gameInstancePresets.bidAmount100).toString(),
+          true,
+          gameInstancePresets.roundIndexes[1]
+        );
+
+      await biddersRewardsFactory.rotateRewardsContracts(admin.address);
+
+      const biddersRewardsAddress =
+        await biddersRewardsFactory.rewardsAddresses(0);
+      const BiddersRewards = await ethers.getContractFactory("BiddersRewards");
+      biddersRewards = await BiddersRewards.attach(biddersRewardsAddress);
+
+      await yoloRegistry.removeContractAddress(HashedContractNames.NFT_TRACKER);
+
+      await expect(biddersRewardsFactory.endRewards()).to.be.revertedWith(
+        "ZAA_NFTTracker()"
+      );
+    });
+
+    it("reverts end rewards on missing Yolo NFT Pack", async () => {
+      const rewardsAddressesLengthUnInited =
+        await biddersRewardsFactory.getRewardsAddressesLength();
+
+      expect(rewardsAddressesLengthUnInited).to.equal(0);
+      await yoloNFTPack.grantRole(
+        HashedRoles.ADMIN_ROLE,
+        biddersRewardsFactory.address
+      );
+
+      await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
+      await nftTracker.grantRole(
+        HashedRoles.ADMIN_ROLE,
+        biddersRewardsFactory.address
+      );
+      await yoloNFTPack.createBaseType(true);
+      await yoloNFTPack.setTokenLevelMaxCap(level1Id, 1);
+      await yoloNFTPack.setNFTTrackerContract();
+      await yoloNFTPack.mintBaseSFT(alice.address);
+
+      await nftTracker.setYoloNFTPackContract();
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+
+      await stablecoinToken
+        .connect(alice)
+        .approve(
+          gameETH_USD_W_NFT_Pack.address,
+          toTokenAmount(gameInstancePresets.approveMAX).toString()
+        );
+
+      await stablecoinToken.transfer(
+        alice.address,
+        toTokenAmount(gameInstancePresets.transferAmount).toString()
+      );
+
+      await gameETH_USD_W_NFT_Pack
+        .connect(alice)
+        .bidInYolo(
+          toTokenAmount(gameInstancePresets.bidAmount100).toString(),
+          true,
+          gameInstancePresets.roundIndexes[1]
+        );
+
+      await biddersRewardsFactory.rotateRewardsContracts(admin.address);
+
+      const biddersRewardsAddress =
+        await biddersRewardsFactory.rewardsAddresses(0);
+      const BiddersRewards = await ethers.getContractFactory("BiddersRewards");
+      biddersRewards = await BiddersRewards.attach(biddersRewardsAddress);
+
+      await yoloRegistry.removeContractAddress(
+        HashedContractNames.YOLO_NFT_PACK
+      );
+
+      await expect(biddersRewardsFactory.endRewards()).to.be.revertedWith(
+        "ZAA_YoloNFTPack()"
       );
     });
   });

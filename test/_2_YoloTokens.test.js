@@ -12,8 +12,6 @@ const yoloConstants = require("./constants");
 // *** YOLOrekt Tokens Unit Test ***
 
 // Preset Values
-const yoloSharePresets = yoloConstants.TestPresets.YOLO_SHARES;
-const yoloNftPresets = yoloConstants.TestPresets.YOLO_NFT;
 const { InterfaceIds } = yoloConstants.Globals;
 
 describe("YOLOrekt Tokens Test", () => {
@@ -22,7 +20,6 @@ describe("YOLOrekt Tokens Test", () => {
 
   //  *** Contracts ***
   let stablecoinToken;
-  let yoloNFT;
   let liquidityPool;
 
   async function fixture() {
@@ -34,7 +31,6 @@ describe("YOLOrekt Tokens Test", () => {
     const contracts = getContracts();
 
     stablecoinToken = contracts.stablecoinToken;
-    yoloNFT = contracts.yoloNFT;
     liquidityPool = contracts.liquidityPool;
   }
 

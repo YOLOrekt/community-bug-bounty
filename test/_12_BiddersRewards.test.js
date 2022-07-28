@@ -30,8 +30,22 @@ const {
   TestPresets: {
     GAME_INSTANCE: gameInstancePresets,
     NFT_TRACKER: nftTrackerPresets,
-    NFT_TRACKER: { level1Id, level2Id, level3Id, sixtyDays },
-    YOLO_NFT_PACK: { l1FirstToken, l1SecondToken, l1ThirdToken, l1FourthToken },
+    NFT_TRACKER: {
+      level1Id,
+      level2Id,
+      level3Id,
+      sixtyDays,
+      rewardsMultiplier100,
+      rewardsMultiplier200,
+      rewardsMultiplier300,
+    },
+    YOLO_NFT_PACK: {
+      l1FirstToken,
+      l1SecondToken,
+      l1ThirdToken,
+      l1FourthToken,
+      l2FirstToken,
+    },
   },
   Globals: { HashedRoles },
 } = yoloConstants;
@@ -159,7 +173,7 @@ describe("YOLOrekt BiddersRewards Test", () => {
     //   await nftTracker.setBiddersRewardsContract(biddersRewards.address);
     //   await nftTracker.setYoloNFTPackContract();
 
-    //   await nftTracker.setLevelRequirement(level1Id, 1, 2);
+    //   await nftTracker.setLevelRequirement(level1Id, 1, rewardsMultiplier200);
 
     //   await stablecoinToken
     //     .connect(alice)
@@ -205,6 +219,16 @@ describe("YOLOrekt BiddersRewards Test", () => {
       );
     });
 
+    it("can set round count weighting", async () => {
+      expect(await biddersRewards.countWeight()).to.be.equal(
+        toUSDCAmount(5).toString()
+      );
+
+      await biddersRewards.setCountWeight(6543210);
+
+      expect(await biddersRewards.countWeight()).to.be.equal(6543210);
+    });
+
     it("funds entirely to one level", async () => {
       await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
 
@@ -221,7 +245,12 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -247,7 +276,15 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await biddersRewards.setMaxFundAmount(fundAmount);
 
+      expect(
+        await biddersRewards.getUserPendingReward(l1FirstToken)
+      ).to.be.equal(0);
+
       await biddersRewards.fund(fundAmount);
+
+      expect(
+        await biddersRewards.getUserPendingReward(l1FirstToken)
+      ).to.be.equal(fundAmount);
 
       console.log(await biddersRewards.poolInfos(level1Id));
 
@@ -274,7 +311,12 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -340,7 +382,12 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -388,9 +435,21 @@ describe("YOLOrekt BiddersRewards Test", () => {
         .div(combinedWeighting)
         .toString();
 
+      expect(
+        await biddersRewards.getUserPendingReward(l1FirstToken)
+      ).to.be.equal(aliceReward);
+
+      expect(
+        await biddersRewards.getUserPendingReward(l1SecondToken)
+      ).to.be.equal(bobReward);
+
       await expect(() =>
         biddersRewards.connect(alice).harvest(alice.address)
       ).to.changeTokenBalance(stablecoinToken, alice, aliceReward);
+
+      expect(
+        await biddersRewards.getUserPendingReward(l1FirstToken)
+      ).to.be.equal(0);
 
       await expect(() =>
         biddersRewards.connect(bob).harvest(bob.address)
@@ -434,8 +493,18 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -491,6 +560,22 @@ describe("YOLOrekt BiddersRewards Test", () => {
         .mul(new BN(fundAmount))
         .div(combinedWeighting)
         .toString();
+
+      expect(await biddersRewards.getLatestLevelReward(level1Id)).to.be.equal(
+        l1Rewards
+      );
+
+      expect(await biddersRewards.getLatestLevelReward(level2Id)).to.be.equal(
+        l2Rewards
+      );
+
+      expect(
+        await biddersRewards.getUserPendingReward(l1FirstToken)
+      ).to.be.equal(l1Rewards);
+
+      expect(
+        await biddersRewards.getUserPendingReward(l2FirstToken)
+      ).to.be.equal(l2Rewards);
 
       await expect(() =>
         biddersRewards.connect(alice).harvest(alice.address)
@@ -555,8 +640,18 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -724,9 +819,24 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
-      await nftTracker.setLevelRequirement(level3Id, 3, 4, 3);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
+      await nftTracker.setLevelRequirement(
+        level3Id,
+        3,
+        4,
+        rewardsMultiplier300
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -911,9 +1021,24 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
-      await nftTracker.setLevelRequirement(level3Id, 3, 4, 3);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
+      await nftTracker.setLevelRequirement(
+        level3Id,
+        3,
+        4,
+        rewardsMultiplier300
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -1078,8 +1203,18 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -1259,9 +1394,24 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
-      await nftTracker.setLevelRequirement(level3Id, 3, 4, 3);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
+      await nftTracker.setLevelRequirement(
+        level3Id,
+        3,
+        4,
+        rewardsMultiplier300
+      );
 
       await stablecoinToken
         .connect(alice)
@@ -1356,8 +1506,18 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
       await yoloNFTPack.setNFTTrackerContract();
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
       await yoloNFTPack.mintBaseSFT(alice.address);
 
       await stablecoinToken
@@ -1445,8 +1605,18 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 2, 3, 2);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        2,
+        3,
+        rewardsMultiplier200
+      );
 
       await stablecoinToken
         .connect(carol)
@@ -1500,7 +1670,12 @@ describe("YOLOrekt BiddersRewards Test", () => {
 
       await nftTracker.setYoloNFTPackContract();
       await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
       await nftTracker.setYoloNFTPackContract();
 
       await yoloNFTPack.mintBaseSFT(carol.address);

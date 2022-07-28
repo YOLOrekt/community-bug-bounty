@@ -19,7 +19,13 @@ const {
   Math: { ZERO_ADDRESS, EMPTY_BYTES },
   TestPresets: {
     YOLO_NFT_PACK: { l1FirstToken, l2FirstToken, nftFirstToken, UNITY },
-    NFT_TRACKER: { level1Id, level2Id, nftBasetype },
+    NFT_TRACKER: {
+      level1Id,
+      level2Id,
+      nftBasetype,
+      rewardsMultiplier100,
+      rewardsMultiplier200,
+    },
   },
   Globals: { InterfaceIds, HashedRoles },
 } = yoloConstants;
@@ -35,6 +41,8 @@ describe("YOLOrekt YoloNFTPack Test", () => {
   let yoloNFTPack;
   let nftTracker;
   let gameETH_USD_W_NFT_Pack;
+  let biddersRewards;
+  let biddersRewardsFactory;
   let yoloRegistry;
   let gameFactoryWithNFTPack;
 
@@ -52,7 +60,34 @@ describe("YOLOrekt YoloNFTPack Test", () => {
     nftTracker = contracts.nftTracker;
     gameETH_USD_W_NFT_Pack = contracts.gameETH_USD_W_NFT_Pack;
     yoloRegistry = contracts.yoloRegistry;
+    biddersRewardsFactory = contracts.biddersRewardsFactory;
     gameFactoryWithNFTPack = contracts.gameFactoryWithNFTPack;
+
+    await yoloNFTPack.grantRole(
+      HashedRoles.ADMIN_ROLE,
+      biddersRewardsFactory.address
+    );
+
+    await nftTracker.grantRole(
+      HashedRoles.ADMIN_ROLE,
+      biddersRewardsFactory.address
+    );
+
+    await biddersRewardsFactory.rotateRewardsContracts(admin.address);
+
+    const biddersRewardsAddress = await biddersRewardsFactory.rewardsAddresses(
+      0
+    );
+
+    const BiddersRewards = await ethers.getContractFactory("BiddersRewards");
+    biddersRewards = await BiddersRewards.attach(biddersRewardsAddress);
+
+    await yoloRegistry.setContract(
+      getPackedEncodingNameHash(
+        yoloConstants.Globals.ContractNames.BIDDERS_REWARDS
+      ),
+      [biddersRewards.address, 1, 1]
+    );
 
     await gameETH_USD_W_NFT_Pack.unpause();
   }
@@ -151,7 +186,7 @@ describe("YOLOrekt YoloNFTPack Test", () => {
           UNITY,
           EMPTY_BYTES
         )
-      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
     });
 
     it("reverts token transfer due to insufficient balance", async () => {
@@ -504,7 +539,7 @@ describe("YOLOrekt YoloNFTPack Test", () => {
 
       await expect(
         yoloNFTPack.burn(bob.address, l1FirstToken, UNITY)
-      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
     });
 
     // zero address revert unreachable
@@ -515,14 +550,14 @@ describe("YOLOrekt YoloNFTPack Test", () => {
 
       await expect(
         yoloNFTPack.connect(alice).burn(ZERO_ADDRESS, l1FirstToken, UNITY)
-      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
 
       await yoloNFTPack.connect(bob).setApprovalForAll(alice.address, true);
       await yoloNFTPack.mintBaseSFT(bob.address);
 
       await expect(
         yoloNFTPack.connect(alice).burn(ZERO_ADDRESS, l1FirstToken, UNITY)
-      ).to.be.revertedWith("ERC1155: caller is not token owner nor approved");
+      ).to.be.revertedWith("ERC1155: caller is not owner nor approved");
     });
 
     it("reverts token burn due to insufficient balance", async () => {
@@ -687,7 +722,12 @@ describe("YOLOrekt YoloNFTPack Test", () => {
         await yoloNFTPack.mintBaseSFT(alice.address);
 
         await nftTracker.setYoloNFTPackContract();
-        await nftTracker.setLevelRequirement(level1Id, 1, 1, 1);
+        await nftTracker.setLevelRequirement(
+          level1Id,
+          1,
+          1,
+          rewardsMultiplier100
+        );
 
         await expect(
           yoloNFTPack.connect(alice).upgradeToken(l1FirstToken)
@@ -696,6 +736,11 @@ describe("YOLOrekt YoloNFTPack Test", () => {
 
       it("upgrades token", async () => {
         await nftTracker.setYoloNFTPackContract();
+
+        await yoloNFTPack.setBiddersRewardsFactoryContract(
+          biddersRewardsFactory.address
+        );
+        await nftTracker.setBiddersRewardsContract(biddersRewards.address);
 
         await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
 
@@ -727,9 +772,19 @@ describe("YOLOrekt YoloNFTPack Test", () => {
             gameInstancePresets.roundIndexes[1]
           );
 
-        await nftTracker.setLevelRequirement(level1Id, 1, 1, 1);
+        await nftTracker.setLevelRequirement(
+          level1Id,
+          1,
+          1,
+          rewardsMultiplier100
+        );
 
-        await nftTracker.setLevelRequirement(level2Id, 2, 2, 2);
+        await nftTracker.setLevelRequirement(
+          level2Id,
+          2,
+          2,
+          rewardsMultiplier200
+        );
 
         expect(await yoloNFTPack.ownerOf(l1FirstToken)).to.equal(alice.address);
 
@@ -741,6 +796,11 @@ describe("YOLOrekt YoloNFTPack Test", () => {
       it("upgrades token to NFT", async () => {
         await nftTracker.setYoloNFTPackContract();
 
+        await yoloNFTPack.setBiddersRewardsFactoryContract(
+          biddersRewardsFactory.address
+        );
+        await nftTracker.setBiddersRewardsContract(biddersRewards.address);
+
         await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
 
         await yoloNFTPack.createBaseType(true);
@@ -771,9 +831,19 @@ describe("YOLOrekt YoloNFTPack Test", () => {
             gameInstancePresets.roundIndexes[1]
           );
 
-        await nftTracker.setLevelRequirement(level1Id, 1, 1, 1);
+        await nftTracker.setLevelRequirement(
+          level1Id,
+          1,
+          1,
+          rewardsMultiplier100
+        );
 
-        await nftTracker.setLevelRequirement(nftBasetype, 2, 2, 2);
+        await nftTracker.setLevelRequirement(
+          nftBasetype,
+          2,
+          2,
+          rewardsMultiplier200
+        );
 
         expect(await yoloNFTPack.ownerOf(l1FirstToken)).to.equal(alice.address);
 
@@ -785,6 +855,10 @@ describe("YOLOrekt YoloNFTPack Test", () => {
       });
 
       it("reverts with threshold req not met", async () => {
+        await yoloNFTPack.setBiddersRewardsFactoryContract(
+          biddersRewardsFactory.address
+        );
+        await nftTracker.setBiddersRewardsContract(biddersRewards.address);
         await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
 
         await yoloNFTPack.createBaseType(true);
@@ -808,8 +882,18 @@ describe("YOLOrekt YoloNFTPack Test", () => {
 
         await nftTracker.setYoloNFTPackContract();
 
-        await nftTracker.setLevelRequirement(level1Id, 1, 1, 1);
-        await nftTracker.setLevelRequirement(level2Id, 2, 2, 2);
+        await nftTracker.setLevelRequirement(
+          level1Id,
+          1,
+          1,
+          rewardsMultiplier100
+        );
+        await nftTracker.setLevelRequirement(
+          level2Id,
+          2,
+          2,
+          rewardsMultiplier200
+        );
 
         await expect(
           yoloNFTPack.connect(alice).upgradeToken(l1FirstToken)
@@ -821,6 +905,11 @@ describe("YOLOrekt YoloNFTPack Test", () => {
       it("should revert if setURI on ID already revoked", async () => {
         await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
         await nftTracker.setYoloNFTPackContract();
+        await nftTracker.setBiddersRewardsContract(biddersRewards.address);
+
+        await yoloNFTPack.setBiddersRewardsFactoryContract(
+          biddersRewardsFactory.address
+        );
 
         await yoloNFTPack.createBaseType(true);
         // sanction 2nd level
@@ -829,8 +918,18 @@ describe("YOLOrekt YoloNFTPack Test", () => {
         await yoloNFTPack.setTokenLevelMaxCap(nftBasetype, 1);
         await yoloNFTPack.mintBaseSFT(alice.address);
 
-        await nftTracker.setLevelRequirement(level1Id, 1, 1, 1);
-        await nftTracker.setLevelRequirement(nftBasetype, 2, 2, 2);
+        await nftTracker.setLevelRequirement(
+          level1Id,
+          1,
+          1,
+          rewardsMultiplier100
+        );
+        await nftTracker.setLevelRequirement(
+          nftBasetype,
+          2,
+          2,
+          rewardsMultiplier200
+        );
 
         await stablecoinToken
           .connect(alice)
@@ -867,6 +966,149 @@ describe("YOLOrekt YoloNFTPack Test", () => {
             "ipfs://QmbWqxBsKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnS"
           )
         ).to.be.revertedWith("setter role revoked for id");
+      });
+    });
+
+    describe("Incorrect contract setup", () => {
+      it("must set bidders rewards contract", async () => {
+        // --- NFTTracker ---
+        const NFTTracker = await ethers.getContractFactory("NFTTracker");
+        nftTracker = await NFTTracker.deploy(yoloRegistry.address);
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.NFT_TRACKER
+          ),
+          [nftTracker.address, 2, 2]
+        );
+
+        // --- YoloNFTPack - requires nft tracker ---
+        const YoloNFTPack = await ethers.getContractFactory("YoloNFTPack");
+        yoloNFTPack = await YoloNFTPack.deploy(yoloRegistry.address);
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.YOLO_NFT_PACK
+          ),
+          [yoloNFTPack.address, 2, 2]
+        );
+
+        await yoloRegistry.removeContractAddress(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.BIDDERS_REWARDS_FACTORY
+          )
+        );
+
+        const BiddersRewardsFactory = await ethers.getContractFactory(
+          "BiddersRewardsFactory"
+        );
+        biddersRewardsFactory = await BiddersRewardsFactory.deploy(
+          yoloRegistry.address
+        );
+
+        await yoloRegistry.setContract(
+          getPackedEncodingNameHash(
+            yoloConstants.Globals.ContractNames.BIDDERS_REWARDS_FACTORY
+          ),
+          [biddersRewardsFactory.address, 2, 2]
+        );
+
+        //re deploy the game
+        const game1PairWNFTPack = yoloConstants.Globals.GamePairHashes.ETH_USD;
+        const game1LengthWNFTPack = 80;
+        const roundIndex = 0;
+        const maxStartDelay = yoloConstants.TestPresets.Miner.FIFTEEN_MINUTES;
+
+        const gameWithNFTPackInstanceAddress =
+          await gameFactoryWithNFTPack.getPredictedGameAddress(
+            admin.address,
+            yoloRegistry.address,
+            game1PairWNFTPack,
+            game1LengthWNFTPack,
+            roundIndex,
+            maxStartDelay
+          );
+        await yoloRegistry.setApprovedGame(
+          gameWithNFTPackInstanceAddress,
+          true
+        );
+        await gameFactoryWithNFTPack.createGame(
+          admin.address,
+          yoloRegistry.address,
+          game1PairWNFTPack,
+          game1LengthWNFTPack,
+          roundIndex,
+          maxStartDelay
+        );
+
+        const GameInstanceWithNFTPack = await ethers.getContractFactory(
+          "GameInstanceWithNFTPack"
+        );
+
+        const gameETH_USD_W_NFT_Pack_2 = await GameInstanceWithNFTPack.attach(
+          gameWithNFTPackInstanceAddress
+        );
+
+        await gameETH_USD_W_NFT_Pack_2.unpause();
+
+        await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
+
+        await yoloNFTPack.createBaseType(true);
+        await yoloNFTPack.createBaseType(true);
+        await yoloNFTPack.setTokenLevelMaxCap(level1Id, 1);
+        await yoloNFTPack.setTokenLevelMaxCap(level2Id, 1);
+
+        console.log(
+          "create SFT est gas:",
+          await yoloNFTPack.estimateGas.createBaseType(true)
+        );
+
+        await nftTracker.setYoloNFTPackContract();
+        await yoloNFTPack.setNFTTrackerContract();
+
+        await nftTracker.setLevelRequirement(
+          level1Id,
+          1,
+          1,
+          rewardsMultiplier100
+        );
+        await nftTracker.setLevelRequirement(
+          level2Id,
+          2,
+          2,
+          rewardsMultiplier200
+        );
+
+        await yoloNFTPack.mintBaseSFT(alice.address);
+
+        await stablecoinToken
+          .connect(alice)
+          .approve(
+            gameETH_USD_W_NFT_Pack_2.address,
+            toTokenAmount(gameInstancePresets.approveMAX).toString()
+          );
+
+        await stablecoinToken.transfer(
+          alice.address,
+          toTokenAmount(gameInstancePresets.transferAmount).toString()
+        );
+
+        await gameETH_USD_W_NFT_Pack_2
+          .connect(alice)
+          .bidInYolo(
+            toTokenAmount(gameInstancePresets.bidAmount200).toString(),
+            false,
+            gameInstancePresets.roundIndexes[1]
+          );
+        await gameETH_USD_W_NFT_Pack_2
+          .connect(alice)
+          .bidInYolo(
+            toTokenAmount(gameInstancePresets.bidAmount200).toString(),
+            false,
+            gameInstancePresets.roundIndexes[1]
+          );
+
+        await yoloNFTPack.connect(alice).upgradeToken(l1FirstToken);
+
+        expect(await yoloNFTPack.ownerOf(l2FirstToken)).to.equal(alice.address);
       });
     });
   });

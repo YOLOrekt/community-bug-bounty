@@ -16,7 +16,13 @@ const provider = ethers.provider;
 const {
   Math: { ZERO_ADDRESS },
   TestPresets: {
-    NFT_TRACKER: { level1Id, level2Id },
+    NFT_TRACKER: {
+      level1Id,
+      level2Id,
+      rewardsMultiplier100,
+      rewardsMultiplier200,
+      rewardsMultiplier300,
+    },
   },
   Globals: { HashedRoles },
 } = yoloConstants;
@@ -116,7 +122,9 @@ describe("YOLOrekt NFTTracker Test", () => {
       await nftTracker.setYoloNFTPackContract();
 
       await expect(
-        nftTracker.connect(alice).setLevelRequirement(0, 1, 1, 1)
+        nftTracker
+          .connect(alice)
+          .setLevelRequirement(0, 1, 1, rewardsMultiplier100)
       ).to.be.revertedWith(
         "VM Exception while processing transaction: reverted with reason string 'AccessControl: account " +
           alice.address.toLowerCase() +
@@ -132,7 +140,7 @@ describe("YOLOrekt NFTTracker Test", () => {
       await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
 
       await expect(
-        nftTracker.setLevelRequirement(0, 1, 1, 1)
+        nftTracker.setLevelRequirement(0, 1, 1, rewardsMultiplier100)
       ).to.be.revertedWith("incorrect token base encoding");
     });
 
@@ -140,7 +148,7 @@ describe("YOLOrekt NFTTracker Test", () => {
       await nftTracker.setYoloNFTPackContract();
       await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 0, 1, 1)
+        nftTracker.setLevelRequirement(level1Id, 0, 1, rewardsMultiplier100)
       ).to.be.revertedWith("base type does not exist");
     });
 
@@ -150,7 +158,7 @@ describe("YOLOrekt NFTTracker Test", () => {
       await yoloNFTPack.createBaseType(true);
 
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 0, 1, 1)
+        nftTracker.setLevelRequirement(level1Id, 0, 1, rewardsMultiplier100)
       ).to.be.revertedWith("new thresholds must be greater than lower level");
     });
 
@@ -160,7 +168,7 @@ describe("YOLOrekt NFTTracker Test", () => {
       await yoloNFTPack.createBaseType(true);
 
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 1, 0, 1)
+        nftTracker.setLevelRequirement(level1Id, 1, 0, rewardsMultiplier100)
       ).to.be.revertedWith("new thresholds must be greater than lower level");
     });
   });
@@ -172,7 +180,9 @@ describe("YOLOrekt NFTTracker Test", () => {
       await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
       await yoloNFTPack.createBaseType(true);
 
-      await expect(nftTracker.setLevelRequirement(level1Id, 1, 2, 1))
+      await expect(
+        nftTracker.setLevelRequirement(level1Id, 1, 2, rewardsMultiplier100)
+      )
         .to.emit(nftTracker, "LevelSet")
         .withArgs(level1Id, 1, 2);
 
@@ -195,8 +205,18 @@ describe("YOLOrekt NFTTracker Test", () => {
       await yoloNFTPack.createBaseType(true);
       await yoloNFTPack.createBaseType(true);
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 3, 4, 3);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        3,
+        4,
+        rewardsMultiplier300
+      );
 
       const level2Requirements = await nftTracker.levelRequirements(level2Id);
       const l1Req = await nftTracker.levelRequirements(level1Id);
@@ -217,11 +237,11 @@ describe("YOLOrekt NFTTracker Test", () => {
       await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
       await yoloNFTPack.createBaseType(true);
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 0, 4, 1)
+        nftTracker.setLevelRequirement(level1Id, 0, 4, rewardsMultiplier100)
       ).to.be.revertedWith("new thresholds must be greater than lower level");
 
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 1, 0, 2)
+        nftTracker.setLevelRequirement(level1Id, 1, 0, rewardsMultiplier200)
       ).to.be.revertedWith("new thresholds must be greater than lower level");
     });
 
@@ -231,19 +251,29 @@ describe("YOLOrekt NFTTracker Test", () => {
       await yoloNFTPack.createBaseType(true);
       await yoloNFTPack.createBaseType(true);
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 3, 4, 3);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        3,
+        4,
+        rewardsMultiplier300
+      );
 
       await expect(
-        nftTracker.setLevelRequirement(level2Id, 1, 4, 2)
+        nftTracker.setLevelRequirement(level2Id, 1, 4, rewardsMultiplier200)
       ).to.be.revertedWith("new thresholds must be greater than lower level");
 
       await expect(
-        nftTracker.setLevelRequirement(level2Id, 3, 2, 3)
+        nftTracker.setLevelRequirement(level2Id, 3, 2, rewardsMultiplier300)
       ).to.be.revertedWith("new thresholds must be greater than lower level");
 
       await expect(
-        nftTracker.setLevelRequirement(level2Id, 0, 4, 1)
+        nftTracker.setLevelRequirement(level2Id, 0, 4, rewardsMultiplier100)
       ).to.be.revertedWith("new thresholds must be greater than lower level");
 
       await expect(
@@ -257,24 +287,56 @@ describe("YOLOrekt NFTTracker Test", () => {
       await yoloNFTPack.createBaseType(true);
       await yoloNFTPack.createBaseType(true);
 
-      await nftTracker.setLevelRequirement(level1Id, 1, 2, 1);
-      await nftTracker.setLevelRequirement(level2Id, 3, 4, 3);
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+      await nftTracker.setLevelRequirement(
+        level2Id,
+        3,
+        4,
+        rewardsMultiplier300
+      );
 
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 1, 4, 1)
+        nftTracker.setLevelRequirement(level1Id, 1, 4, rewardsMultiplier100)
       ).to.be.revertedWith("new thresholds must be less than next level");
 
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 3, 2, 3)
+        nftTracker.setLevelRequirement(level1Id, 3, 2, rewardsMultiplier300)
       ).to.be.revertedWith("new thresholds must be less than next level");
 
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 1, 4, 2)
+        nftTracker.setLevelRequirement(level1Id, 1, 4, rewardsMultiplier200)
       ).to.be.revertedWith("new thresholds must be less than next level");
 
       await expect(
-        nftTracker.setLevelRequirement(level1Id, 3, 2, 4)
+        nftTracker.setLevelRequirement(level1Id, 3, 2, 400)
       ).to.be.revertedWith("new thresholds must be less than next level");
+    });
+
+    it("Cannot set multiplier value less than 100", async () => {
+      await nftTracker.setYoloNFTPackContract();
+      await nftTracker.grantRole(HashedRoles.MINTER_ROLE, admin.address);
+      await yoloNFTPack.createBaseType(true);
+      await yoloNFTPack.createBaseType(true);
+
+      await nftTracker.setLevelRequirement(
+        level1Id,
+        1,
+        2,
+        rewardsMultiplier100
+      );
+
+      await expect(
+        nftTracker.setLevelRequirement(level1Id, 1, 4, 99)
+      ).to.be.revertedWith("MultiplierBelow100()");
+
+      await expect(
+        nftTracker.modifyUserIncentives(level1Id, 99)
+      ).to.be.revertedWith("MultiplierBelow100()");
     });
   });
 
