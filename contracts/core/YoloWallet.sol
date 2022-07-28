@@ -87,7 +87,7 @@ contract YoloWallet is RegistrySatellite {
         onlyAuthorized(ADMIN_ROLE)
     {
         require(
-            treasuryFeeBP < BASIS_FEE_FACTOR / 4,
+            newBasisPoints < BASIS_FEE_FACTOR / 4,
             "must be l.t. quarter lp fee"
         );
         treasuryFeeBP = newBasisPoints;

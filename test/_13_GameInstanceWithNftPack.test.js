@@ -119,6 +119,31 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
       expect(await gameETH_USD.paused()).to.be.equal(true);
     });
 
+    // TODO: move LP tests to separate file
+    it("should set LP protection factor", async () => {
+      expect(await liquidityPool.protectionFactor()).to.be.equal(1000);
+
+      await liquidityPool.setProtectionFactor(42);
+
+      expect(await liquidityPool.protectionFactor()).to.be.equal(42);
+    });
+
+    it("should set LP minimum deposit amount", async () => {
+      expect(await liquidityPool.minimumDepositAmount()).to.be.equal(
+        toUSDCAmount(400).toString()
+      );
+
+      await liquidityPool.setMinimumDepositAmount(42);
+
+      expect(await liquidityPool.minimumDepositAmount()).to.be.equal(42);
+    });
+
+    it("should revert LP set market limit g.t. 2000 token", async () => {
+      await expect(
+        liquidityPool.setMarketLimit(toUSDCAmount(2000).toString())
+      ).to.be.revertedWith("new limit val exceeds constraint");
+    });
+
     it("should revert if other user try to pause", async () => {
       await expect(gameETH_USD.connect(bob).pause()).to.be.revertedWith(
         "VM Exception while processing transaction: reverted with reason string 'AccessControl: account " +
@@ -404,6 +429,13 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
             gameInstancePresets.roundIndexes[1]
           )
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+    });
+
+    it("should rever tresury fee split greater than 2500 basis points", async () => {
+      const oneQuarterSplit = 2500;
+      await expect(
+        yoloWallet.setTreasurySplit(oneQuarterSplit)
+      ).to.be.revertedWith("must be l.t. quarter lp fee");
     });
 
     it("should revert if startTime exceeds max delay time", async () => {
@@ -789,11 +821,11 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
     });
 
     it("should able to collect fee to Liquidity Pool on processing round (up wins)", async () => {
-      const oneThird = yoloWalletPresets.oneThirdSplit;
+      const oneQuarterShy = yoloWalletPresets.oneQuarterShySplit;
       const theRest = yoloWalletPresets.splitRemainder;
 
       await yoloWallet.setTreasuryAddress(treasury.address);
-      await yoloWallet.setTreasurySplit(oneThird);
+      await yoloWallet.setTreasurySplit(oneQuarterShy);
 
       await gameETH_USD.processRound(
         currentTime,
@@ -888,18 +920,18 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
 
       expect(
         (await yoloWallet.balances(treasury.address)).toString()
-      ).to.be.equal(fee.mul(oneThird).div(10000).toString());
+      ).to.be.equal(fee.mul(oneQuarterShy).div(10000).toString());
       expect(
         (await yoloWallet.balances(liquidityPool.address)).toString()
       ).to.be.equal(fee.mul(theRest).div(10000).toString());
     });
 
     it("should able to collect fee to Liquidity Pool on processing round (down wins)", async () => {
-      const oneThird = yoloWalletPresets.oneThirdSplit;
+      const oneQuarterShy = yoloWalletPresets.oneQuarterShySplit;
       const theRest = yoloWalletPresets.splitRemainder;
 
       await yoloWallet.setTreasuryAddress(treasury.address);
-      await yoloWallet.setTreasurySplit(oneThird);
+      await yoloWallet.setTreasurySplit(oneQuarterShy);
 
       await gameETH_USD.processRound(
         currentTime,
@@ -991,7 +1023,7 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
 
       expect(
         (await yoloWallet.balances(treasury.address)).toString()
-      ).to.be.equal(fee.mul(oneThird).div(10000).toString());
+      ).to.be.equal(fee.mul(oneQuarterShy).div(10000).toString());
       expect(
         (await yoloWallet.balances(liquidityPool.address)).toString()
       ).to.be.equal(fee.mul(theRest).div(10000).toString());
@@ -1202,7 +1234,7 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
     });
 
     it("should able to collect fee and liquidity back to Liquidity Pool on processing round (up wins)", async () => {
-      const oneThird = yoloWalletPresets.oneThirdSplit;
+      const oneQuarterShy = yoloWalletPresets.oneQuarterShySplit;
       const theRest = yoloWalletPresets.splitRemainder;
       const maxApproveAmount = toUSDCAmount(
         gameInstancePresets.approveMAX
@@ -1217,13 +1249,21 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
         maxApproveAmount
       );
 
+      expect(await stablecoinToken.balanceOf(yoloWallet.address)).to.equal(
+        maxApproveAmount
+      );
+
+      expect(await liquidityPool.balanceOf(admin.address)).to.equal(
+        BigNumber.from(maxApproveAmount).mul(1e12)
+      );
+
       await gameETH_USD.grantRole(HashedRoles.MARKET_MAKER_ROLE, admin.address);
       await liquidityPool.setMarketLimit(toUSDCAmount(98).toString());
 
       await gameETH_USD.acquireMarketLimit();
 
       await yoloWallet.setTreasuryAddress(treasury.address);
-      await yoloWallet.setTreasurySplit(oneThird);
+      await yoloWallet.setTreasurySplit(oneQuarterShy);
 
       await gameETH_USD.processRound(
         currentTime,
@@ -1298,12 +1338,13 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
         gameInstancePresets.roundIndexes[2]
       );
       const fee = roundPool.totalUserDown
-        .add(roundPool.downLiquidity)
         .add(roundPool.totalUserUp)
+        .add(roundPool.downLiquidity)
         .add(roundPool.upLiquidity)
         .mul(lpFeeRate)
         .div(10000);
 
+      // up won
       const providersReturn = roundPool.upLiquidity
         .mul(roundPool.totalUserDown.add(roundPool.downLiquidity))
         .div(roundPool.upLiquidity.add(roundPool.totalUserUp))
@@ -1334,7 +1375,7 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
 
       expect(
         (await yoloWallet.balances(treasury.address)).toString()
-      ).to.be.equal(fee.mul(oneThird).div(10000).toString());
+      ).to.be.equal(fee.mul(oneQuarterShy).div(10000).toString());
       expect(
         (await yoloWallet.balances(liquidityPool.address)).toString()
       ).to.be.equal(
@@ -1344,6 +1385,45 @@ describe("YOLOrekt GameInstanceWithNftPack Test", () => {
           .add(postLiquidityBalance)
           .add(providersReturn)
           .toString()
+      );
+
+      console.log(
+        "liquidity provider balance on yoloWallet:",
+        await yoloWallet.balances(liquidityPool.address)
+      );
+
+      console.log(
+        "getTokensRedeemed",
+        await liquidityPool.getTokensRedeemed(
+          await liquidityPool.balanceOf(admin.address)
+        )
+      );
+
+      const tokensToBeRedeemed = await liquidityPool.getTokensRedeemed(
+        await liquidityPool.balanceOf(admin.address)
+      );
+
+      expect(await yoloWallet.balances(liquidityPool.address)).to.be.equal(
+        tokensToBeRedeemed
+      );
+
+      const preProviderBalance = await stablecoinToken.balanceOf(admin.address);
+
+      // TODO: move into separate unit test
+      await expect(
+        liquidityPool.burnLpShares(
+          (await liquidityPool.balanceOf(admin.address)).sub(1)
+        )
+      ).to.be.revertedWith("BurnRequirementNotMet()");
+
+      console.log("made it through");
+
+      await liquidityPool.burnLpShares(
+        await liquidityPool.balanceOf(admin.address)
+      );
+
+      expect(await stablecoinToken.balanceOf(admin.address)).to.be.equal(
+        preProviderBalance.add(tokensToBeRedeemed)
       );
     });
 

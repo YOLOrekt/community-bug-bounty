@@ -92,6 +92,8 @@ contract NFTTracker is RegistrySatellite {
         uint16 multiplier
     );
 
+    error MultiplierBelow100();
+
     constructor(address registryAddress_) RegistrySatellite(registryAddress_) {}
 
     function getNFTLevelIdsLength() public view returns (uint256) {
@@ -276,6 +278,8 @@ contract NFTTracker is RegistrySatellite {
             "new thresholds must be greater than lower level"
         );
 
+        if (multiplier < 100) revert MultiplierBelow100();
+
         require(
             multiplier > rewardsMultipliers[prevLevelId],
             "mult must be g.t. prevLevel"
@@ -330,6 +334,8 @@ contract NFTTracker is RegistrySatellite {
         LevelRequirement memory currentLevel = levelRequirements[baseIndex];
 
         require(currentLevel.roundCountThreshold != 0, "level does not exist");
+
+        if (multiplier < 100) revert MultiplierBelow100();
 
         require(
             multiplier > rewardsMultipliers[currentLevel.prevLevelId],

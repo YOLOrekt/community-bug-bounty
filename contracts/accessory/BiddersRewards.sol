@@ -41,11 +41,6 @@ contract BiddersRewards is RegistrySatellite {
     using SafeERC20 for IERC20;
     // using LogBinary for uint256;
 
-    // divide weights out in denominator - integer truncation should not be concern as rewards multiplier covers wei decimals
-    uint256 constant CUM_AMOUNT_WEIGHT = 1;
-    // TODO: count weight reduce to about min bid amount
-    // TODO: make dynamic var to adjust before releasing funds if needed
-    uint256 constant COUNT_WEIGHT = 25 * USDC_DECIMALS_FACTOR; // add 10**6 factor to balance token factor (USDC)
     // absolute max fund amount at one time - 2.5M tokens
     uint256 constant MAX_FUND_LIMIT = 1.5 * 10**5 * USDC_DECIMALS_FACTOR;
 
@@ -57,6 +52,8 @@ contract BiddersRewards is RegistrySatellite {
     // process funds amongst levels
     bool public isReleased;
     bool public hasFunding;
+    // divide weights out in denominator - integer truncation should not be concern as rewards multiplier covers USDC decimals
+    uint256 public countWeight = 5 * USDC_DECIMALS_FACTOR; // add 10**6 factor to balance token factor (USDC)
 
     // Address of the USDC ERC20 Token contract.
     IERC20 stablecoinTokenContract;
@@ -104,9 +101,11 @@ contract BiddersRewards is RegistrySatellite {
     );
 
     event MaxFundSet(uint256 newMaxFundAmount);
+    event NewCountWeight(uint256 newCountWeight);
 
     error CallerNotNFTPack();
     error CallerNotNFTTracker();
+    error SetCountAfterRelease();
 
     constructor(
         address rewardsAdmin_,
@@ -150,7 +149,9 @@ contract BiddersRewards is RegistrySatellite {
         uint256 participationWeight = getUserParticipationWeight(id);
 
         if (!harvestLogs[id]) {
-            uint256 totalLevelWeighting = getTotalLevelWeighting(id);
+            uint256 totalLevelWeighting = getTotalLevelWeighting(
+                id.getBaseType()
+            );
             uint256 latestYOLOInLevel = getLatestLevelReward(id);
 
             pendingReward =
@@ -171,7 +172,7 @@ contract BiddersRewards is RegistrySatellite {
 
         (roundCount, cumulativeAmount) = _getNFTStats(_nftId);
 
-        return roundCount * COUNT_WEIGHT + cumulativeAmount * CUM_AMOUNT_WEIGHT;
+        return roundCount * countWeight + cumulativeAmount;
     }
 
     function getLatestLevelReward(uint256 id)
@@ -205,9 +206,8 @@ contract BiddersRewards is RegistrySatellite {
         if (totalRoundCount > 0) {
             totalLevelWeighting =
                 totalRoundCount *
-                COUNT_WEIGHT +
-                totalCumulativeBidAmount *
-                CUM_AMOUNT_WEIGHT;
+                countWeight +
+                totalCumulativeBidAmount;
         }
     }
 
@@ -264,10 +264,7 @@ contract BiddersRewards is RegistrySatellite {
             require(rewardsMultiplier > 0, "set all rewards multipliers");
 
             uint256 levelWeighting = rewardsMultiplier *
-                (totalRoundCount *
-                    COUNT_WEIGHT +
-                    totalCumulativeBidAmount *
-                    CUM_AMOUNT_WEIGHT);
+                (totalRoundCount * countWeight + totalCumulativeBidAmount);
 
             weightedMultiplierSum += levelWeighting;
         }
@@ -281,6 +278,17 @@ contract BiddersRewards is RegistrySatellite {
         NftData memory tracking = epochTokenTracker[id];
         roundCount = tracking.roundCount;
         cumulativeBidAmount = tracking.cumulativeBidAmount;
+    }
+
+    function setCountWeight(uint256 newCountWeight)
+        external
+        onlyAuthorized(REWARDER_ROLE)
+    {
+        if (isReleased == true) revert SetCountAfterRelease();
+
+        countWeight = newCountWeight;
+
+        emit NewCountWeight(newCountWeight);
     }
 
     function setMaxFundAmount(uint256 newMaxFundAmount)
@@ -360,10 +368,7 @@ contract BiddersRewards is RegistrySatellite {
                 .totalCumulativeBidAmount;
 
             uint256 levelWeighting = rewardsMultiplier *
-                (totalRoundCount *
-                    COUNT_WEIGHT +
-                    totalCumulativeBidAmount *
-                    CUM_AMOUNT_WEIGHT);
+                (totalRoundCount * countWeight + totalCumulativeBidAmount);
 
             levelWeightings[i] = levelWeighting;
 
@@ -531,7 +536,7 @@ contract BiddersRewards is RegistrySatellite {
         uint256 userParticipationUnits,
         LevelPoolInfo storage levelPoolInfo
     ) private {
-        // roundCount * COUNT_WEIGHT + cumulativeBidAmount * CUM_AMOUNT_WEIGHT;
+        // roundCount * countWeight + cumulativeBidAmount;
 
         uint256 totalLevelUnits = getTotalLevelWeighting(tokenId.getBaseType());
 
