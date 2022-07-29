@@ -36,6 +36,11 @@ abstract contract RegistrySatellite is CoreCommon {
      * @param role Role key to check authorization on.
      **/
     modifier onlyAuthorized(bytes32 role) {
+        _checkAuthorization(role);
+        _;
+    }
+
+    function _checkAuthorization(bytes32 role) internal view {
         if (
             !hasRole(role, msg.sender) &&
             !yoloRegistryContract.hasRole(role, msg.sender)
@@ -51,7 +56,6 @@ abstract contract RegistrySatellite is CoreCommon {
                 )
             );
         }
-        _;
     }
 
     /**
