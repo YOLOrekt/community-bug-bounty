@@ -371,23 +371,15 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
                 // console.log("totalUserUp %s", roundPool.totalUserUp);
                 // console.log("totalUserDown %s", roundPool.totalUserDown);
 
-                if (
-                    roundPool.totalUserUp != 0 && roundPool.totalUserDown != 0
-                ) {
-                    uint256 payoutAmount = _calculatePayout(
-                        roundPool,
-                        roundData,
-                        bidInfo
-                    );
-                    roundsClaimed[i] = userRound;
-                    roundPayoutAmounts[i] = payoutAmount;
-                    payoutSum += payoutAmount;
-                } else {
-                    // in this case either upCount or downCount must be 0
-                    roundsClaimed[i] = userRound;
-                    roundPayoutAmounts[i] = bidInfo.amount;
-                    payoutSum += bidInfo.amount;
-                }
+                uint256 payoutAmount = _calculatePayout(
+                    roundPool,
+                    roundData,
+                    bidInfo
+                );
+
+                roundsClaimed[i] = userRound;
+                roundPayoutAmounts[i] = payoutAmount;
+                payoutSum += payoutAmount;
 
                 ++settlementCount;
                 cursor = bidInfo.next;
@@ -430,47 +422,42 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
         RoundData memory roundData,
         BidInfo memory bidInfo
     ) private pure returns (uint256 payoutAmount) {
-        uint256 payoutFactor;
-        uint256 totalUp;
-        uint256 totalDown;
-        uint256 postYoloDown;
-        uint256 postYoloUp;
-
-        totalUp = roundPool.totalUserUp + roundPool.upLiquidity;
-        totalDown = roundPool.totalUserDown + roundPool.downLiquidity;
+        uint256 totalUp = roundPool.totalUserUp + roundPool.upLiquidity;
+        uint256 totalDown = roundPool.totalUserDown + roundPool.downLiquidity;
 
         // console.log("totalUp %s", totalUp);
         // console.log("totalDown %s", totalDown);
 
-        // get fees from global params contract
+        if (
+            (roundPool.totalUserUp != 0 && totalDown != 0) ||
+            (roundPool.totalUserDown != 0 && totalUp != 0)
+        ) {
+            uint256 payoutFactor = BASIS_FACTOR - roundData.lpFeeRate;
 
-        payoutFactor = BASIS_FACTOR - roundData.lpFeeRate;
+            // console.log("postYoloUp %s", postYoloUp);
+            // console.log("postYoloDown %s", postYoloDown);
 
-        postYoloUp = totalUp - (totalUp * roundData.lpFeeRate) / BASIS_FACTOR;
-        postYoloDown =
-            totalDown -
-            (totalDown * roundData.lpFeeRate) /
-            BASIS_FACTOR;
-
-        // console.log("postYoloUp %s", postYoloUp);
-        // console.log("postYoloDown %s", postYoloDown);
-
-        {
             if (roundData.settlementPrice > roundData.strikePrice) {
                 // Up wins
                 if (bidInfo.isUp) {
                     payoutAmount =
-                        ((bidInfo.amount * postYoloDown) / totalUp) +
-                        ((bidInfo.amount * payoutFactor) / BASIS_FACTOR);
+                        (((bidInfo.amount * totalDown) /
+                            totalUp +
+                            bidInfo.amount) * payoutFactor) /
+                        BASIS_FACTOR;
                 }
             } else {
                 // Down wins, as do ties for now
                 if (!bidInfo.isUp) {
                     payoutAmount =
-                        ((bidInfo.amount * postYoloUp) / totalDown) +
-                        ((bidInfo.amount * payoutFactor) / BASIS_FACTOR);
+                        (((bidInfo.amount * totalUp) /
+                            totalDown +
+                            bidInfo.amount) * payoutFactor) /
+                        BASIS_FACTOR;
                 }
             }
+        } else {
+            payoutAmount = bidInfo.amount;
         }
     }
 
@@ -556,20 +543,20 @@ contract GameInstance is RegistrySatellite, IYoloGame, Pausable, GameEvents {
 
         uint256 totalFees;
         uint256 returnAmount;
+        uint256 totalUp = roundPool.totalUserUp + roundPool.upLiquidity;
+        uint256 totalDown = roundPool.totalUserDown + roundPool.downLiquidity;
 
-        if (roundPool.totalUserUp != 0 && roundPool.totalUserDown != 0) {
+        if (
+            (roundPool.totalUserUp != 0 && totalDown != 0) ||
+            (roundPool.totalUserDown != 0 && totalUp != 0)
+        ) {
             uint256 payoutFactor;
-            uint256 totalUp;
-            uint256 totalDown;
 
-            totalUp = roundPool.totalUserUp + roundPool.upLiquidity;
-            totalDown = roundPool.totalUserDown + roundPool.downLiquidity;
-
+            payoutFactor = BASIS_FACTOR - currentRoundData.lpFeeRate;
             // get fees from global params contract
             totalFees =
                 ((totalUp + totalDown) * currentRoundData.lpFeeRate) /
                 BASIS_FACTOR;
-            payoutFactor = BASIS_FACTOR - currentRoundData.lpFeeRate;
 
             if (
                 settlementPrice > currentRoundData.strikePrice &&
